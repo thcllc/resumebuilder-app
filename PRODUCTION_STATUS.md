@@ -1,12 +1,14 @@
 # Production Status
 
-Last verified: 2026-06-10.
+Last verified: 2026-06-10 09:44 UTC.
 
 ## Live App
 
 Production URL: `https://resumebuilder.app`.
 
 Cloudflare Pages project: `resumebuilderapp`.
+
+GitHub repository: `https://github.com/thcllc/resumebuilder-app`.
 
 Production source: `app/`.
 
@@ -26,6 +28,12 @@ The root JSX files are retained only as historical design reference. Do not trea
 
 ## Verification
 
+Verified commit: `5f94ccd77bacde1c8575266a6e8158f08532f574`.
+
+GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27267640708`.
+
+CI status: success. The `app` job passed install, typecheck, Chromium browser install, Playwright smoke tests, and production build. The `docker` job passed the Docker image build.
+
 Local required commands:
 
 ```bash
@@ -40,6 +48,16 @@ Live smoke command:
 PLAYWRIGHT_BASE_URL=https://resumebuilder.app pnpm -C app test:smoke
 ```
 
+Live custom-domain check:
+
+```bash
+curl -I https://resumebuilder.app
+```
+
+Result: HTTP 200 from Cloudflare.
+
+Local Playwright preview defaults to port `49217`; override with `PLAYWRIGHT_PORT` if that port is occupied. Local and deployed Playwright artifacts are separated under `test-results/local` and `test-results/deployed`.
+
 Current smoke suite covers:
 
 - ATS scoring corpus.
@@ -50,8 +68,7 @@ Current smoke suite covers:
 
 ## Known External Verification Gaps
 
-- Dockerfile is present and covered by GitHub Actions Docker build configuration, but local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary.
-- GitHub Actions cannot run until this local repository is pushed to a remote GitHub repository; no Git remote is configured in this workspace.
+- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27267640708`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
 
 ## Release Gate
