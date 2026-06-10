@@ -61,8 +61,23 @@ type Tone = "warm" | "direct" | "formal" | "punchy";
 type OutreachChannel = "linkedin" | "email" | "referral" | "recruiter";
 type SocialTab = "linkedin" | "github" | "portfolio" | "cleanup";
 type InterviewTab = "technical" | "craft" | "behavioral" | "asks";
+type ApplicationStatus = "draft" | "applied" | "interview" | "offer" | "rejected";
+type ApplicationVersion = {
+  id: string;
+  name: string;
+  status: ApplicationStatus;
+  updatedAt: string;
+  jobTitle: string;
+  company: string;
+  jd: string;
+  matchScore: number;
+  resume: ResumeData;
+  template: Template;
+};
 
 const STORAGE_KEY = "resume-builder-workspace-v2";
+const VERSIONS_STORAGE_KEY = "resume-builder-versions-v1";
+const applicationStatuses: ApplicationStatus[] = ["draft", "applied", "interview", "offer", "rejected"];
 
 const pages: Array<{ id: Page; label: string; icon: typeof Home }> = [
   { id: "home", label: "Home", icon: Home },
@@ -104,15 +119,6 @@ What you will do
 - Partner with engineers on API design and developer experience
 - Evolve our design system and prototyping culture
 - Ship continuously in production`;
-
-const versionRows = [
-  { name: "Maya Chen - base", status: "draft", updated: "today", jd: "-", score: 68 },
-  { name: "Vercel - Sr. Product Designer", status: "applied", updated: "today", jd: "vercel.com", score: 82 },
-  { name: "Linear - Design Lead", status: "interview", updated: "2d", jd: "linear.app", score: 88 },
-  { name: "Anthropic - Product Designer", status: "applied", updated: "5d", jd: "anthropic.com", score: 79 },
-  { name: "Stripe - Staff Designer", status: "rejected", updated: "1w", jd: "stripe.com", score: 71 },
-  { name: "Ramp - Senior Designer", status: "offer", updated: "2w", jd: "ramp.com", score: 85 },
-];
 
 const letters: Record<Tone, string[]> = {
   warm: [
@@ -424,6 +430,63 @@ const loadResume = (): ResumeData => {
   }
 };
 
+const isApplicationStatus = (value: unknown): value is ApplicationStatus =>
+  typeof value === "string" && applicationStatuses.includes(value as ApplicationStatus);
+
+const parseVersions = (input: unknown): ApplicationVersion[] => {
+  if (!Array.isArray(input)) return [];
+
+  return input.flatMap((item): ApplicationVersion[] => {
+    if (!item || typeof item !== "object") return [];
+    const value = item as Record<string, unknown>;
+
+    try {
+      return [
+        {
+          id: typeof value.id === "string" ? value.id : `version-${crypto.randomUUID()}`,
+          name: typeof value.name === "string" ? value.name : "Untitled application",
+          status: isApplicationStatus(value.status) ? value.status : "draft",
+          updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString(),
+          jobTitle: typeof value.jobTitle === "string" ? value.jobTitle : "Untitled role",
+          company: typeof value.company === "string" ? value.company : "Unknown company",
+          jd: typeof value.jd === "string" ? value.jd : "",
+          matchScore: typeof value.matchScore === "number" ? value.matchScore : 0,
+          resume: parseResume(value.resume),
+          template: templates.some((template) => template.id === value.template)
+            ? (value.template as Template)
+            : "kraft",
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
+};
+
+const loadVersions = (): ApplicationVersion[] => {
+  const stored = localStorage.getItem(VERSIONS_STORAGE_KEY);
+  if (!stored) return [];
+
+  try {
+    return parseVersions(JSON.parse(stored));
+  } catch {
+    return [];
+  }
+};
+
+const formatUpdated = (updatedAt: string) => {
+  const timestamp = new Date(updatedAt).getTime();
+  if (Number.isNaN(timestamp)) return "unknown";
+  const diffMs = Date.now() - timestamp;
+  const minutes = Math.max(0, Math.floor(diffMs / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+};
+
 const downloadFile = (name: string, type: string, body: string) => {
   const blob = new Blob([body], { type });
   const url = URL.createObjectURL(blob);
@@ -447,6 +510,8 @@ const emptyWork = (): WorkItem => ({
 export function App() {
   const [page, setPage] = useState<Page>(initialPage);
   const [resume, setResume] = useState<ResumeData>(loadResume);
+  const [versions, setVersions] = useState<ApplicationVersion[]>(loadVersions);
+  const [activeVersionId, setActiveVersionId] = useState("");
   const [template, setTemplate] = useState<Template>("kraft");
   const [activeWorkId, setActiveWorkId] = useState(resume.work[0]?.id ?? "");
   const [importError, setImportError] = useState("");
@@ -459,10 +524,31 @@ export function App() {
   const score = useMemo(() => scoreResume(resume), [resume]);
   const tailoringAnalysis = useMemo(() => analyzeTailoring(resume, jd), [resume, jd]);
   const activeWork = resume.work.find((work) => work.id === activeWorkId) ?? resume.work[0];
+  const activeVersion = versions.find((version) => version.id === activeVersionId);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(resume));
   }, [resume]);
+
+  useEffect(() => {
+    localStorage.setItem(VERSIONS_STORAGE_KEY, JSON.stringify(versions));
+  }, [versions]);
+
+  useEffect(() => {
+    if (!activeVersionId) return;
+    setVersions((current) =>
+      current.map((version) =>
+        version.id === activeVersionId
+          ? {
+              ...version,
+              resume,
+              template,
+              updatedAt: new Date().toISOString(),
+            }
+          : version,
+      ),
+    );
+  }, [activeVersionId, resume, template]);
 
   useEffect(() => {
     const syncHash = () => setPage(initialPage());
@@ -579,6 +665,7 @@ export function App() {
       const next = parseResume(JSON.parse(text));
       setResume(next);
       setActiveWorkId(next.work[0]?.id ?? "");
+      setActiveVersionId("");
     } catch {
       setImportError("Invalid JSON Resume file.");
     } finally {
@@ -595,9 +682,64 @@ export function App() {
   };
 
   const acceptTailoredDraft = () => {
-    setResume(tailoringAnalysis.draftResume);
-    setActiveWorkId(tailoringAnalysis.draftResume.work[0]?.id ?? "");
+    const existingVersion = versions.find(
+      (version) =>
+        version.jd === jd &&
+        version.jobTitle === tailoringAnalysis.job.title &&
+        version.company === tailoringAnalysis.job.company,
+    );
+    const nextVersionId = existingVersion?.id ?? `version-${crypto.randomUUID()}`;
+    const versionName =
+      tailoringAnalysis.job.source === "parsed"
+        ? `${tailoringAnalysis.job.company} - ${tailoringAnalysis.job.title}`
+        : `Application fork - ${new Date().toLocaleDateString()}`;
+    const nextVersion: ApplicationVersion = {
+      id: nextVersionId,
+      name: versionName,
+      status: existingVersion?.status ?? "draft",
+      updatedAt: new Date().toISOString(),
+      jobTitle: tailoringAnalysis.job.title,
+      company: tailoringAnalysis.job.company,
+      jd,
+      matchScore: tailoringAnalysis.score.tailored,
+      resume: tailoringAnalysis.draftResume,
+      template,
+    };
+
+    setVersions((current) => [
+      nextVersion,
+      ...current.filter((version) => version.id !== nextVersionId),
+    ]);
+    setActiveVersionId(nextVersionId);
+    setResume(nextVersion.resume);
+    setActiveWorkId(nextVersion.resume.work[0]?.id ?? "");
     go("editor");
+  };
+
+  const openVersion = (versionId: string) => {
+    const version = versions.find((item) => item.id === versionId);
+    if (!version) return;
+    setResume(version.resume);
+    setJd(version.jd);
+    setTemplate(version.template);
+    setActiveVersionId(version.id);
+    setActiveWorkId(version.resume.work[0]?.id ?? "");
+    go("editor");
+  };
+
+  const updateVersionStatus = (versionId: string, status: ApplicationStatus) => {
+    setVersions((current) =>
+      current.map((version) =>
+        version.id === versionId
+          ? { ...version, status, updatedAt: new Date().toISOString() }
+          : version,
+      ),
+    );
+  };
+
+  const deleteVersion = (versionId: string) => {
+    setVersions((current) => current.filter((version) => version.id !== versionId));
+    if (activeVersionId === versionId) setActiveVersionId("");
   };
 
   return (
@@ -658,6 +800,7 @@ export function App() {
           template={template}
           setTemplate={setTemplate}
           activeWork={activeWork}
+          activeVersion={activeVersion}
           activeWorkId={activeWorkId}
           setActiveWorkId={setActiveWorkId}
           importError={importError}
@@ -689,7 +832,16 @@ export function App() {
       {page === "templates" && (
         <TemplatesPage resume={resume} template={template} setTemplate={setTemplate} go={go} />
       )}
-      {page === "versions" && <VersionsPage />}
+      {page === "versions" && (
+        <VersionsPage
+          versions={versions}
+          activeVersionId={activeVersionId}
+          openVersion={openVersion}
+          updateVersionStatus={updateVersionStatus}
+          deleteVersion={deleteVersion}
+          go={go}
+        />
+      )}
       {page === "letter" && <CoverLetterPage tone={tone} setTone={setTone} />}
       {page === "outreach" && (
         <OutreachPage channel={outreachChannel} setChannel={setOutreachChannel} />
@@ -771,6 +923,7 @@ function EditorPage({
   template,
   setTemplate,
   activeWork,
+  activeVersion,
   activeWorkId,
   setActiveWorkId,
   importError,
@@ -791,6 +944,7 @@ function EditorPage({
   template: Template;
   setTemplate: (template: Template) => void;
   activeWork?: WorkItem;
+  activeVersion?: ApplicationVersion;
   activeWorkId: string;
   setActiveWorkId: (id: string) => void;
   importError: string;
@@ -851,6 +1005,11 @@ function EditorPage({
           <div>
             <h1>{resume.basics.name || "Untitled resume"}</h1>
             <p>{resume.basics.label || "Add a headline"}</p>
+            {activeVersion && (
+              <div className="version-context">
+                Editing fork: <strong>{activeVersion.name}</strong>
+              </div>
+            )}
           </div>
           {importError && <div className="error">{importError}</div>}
         </div>
@@ -1154,33 +1313,92 @@ function TemplatesPage({
   );
 }
 
-function VersionsPage() {
+function VersionsPage({
+  versions,
+  activeVersionId,
+  openVersion,
+  updateVersionStatus,
+  deleteVersion,
+  go,
+}: {
+  versions: ApplicationVersion[];
+  activeVersionId: string;
+  openVersion: (versionId: string) => void;
+  updateVersionStatus: (versionId: string, status: ApplicationStatus) => void;
+  deleteVersion: (versionId: string) => void;
+  go: (page: Page) => void;
+}) {
   return (
     <main className="content-page">
       <PageHeader
         kicker="Versions"
         title="One resume. Many forks."
-        body="Each application keeps its own local patch set while the base resume stays intact."
+        body="Each accepted tailored draft is saved locally as an application-specific resume fork."
+        action={
+          <button className="button primary" onClick={() => go("tailor")}>
+            <Sparkles size={16} />
+            Create from JD
+          </button>
+        }
       />
-      <PrototypeNotice detail="Version rows are sample data until local application forks are implemented." />
-      <section className="version-table">
-        <div className="version-head">
-          <span>Resume</span>
-          <span>Status</span>
-          <span>Updated</span>
-          <span>Job</span>
-          <span>Match</span>
-        </div>
-        {versionRows.map((row) => (
-          <div className="version-row" key={row.name}>
-            <strong>{row.name}</strong>
-            <span className={`status ${row.status}`}>{row.status}</span>
-            <span>{row.updated}</span>
-            <span>{row.jd}</span>
-            <span className="score-mini">{row.score}</span>
+      {versions.length ? (
+        <section className="version-table">
+          <div className="version-head">
+            <span>Resume</span>
+            <span>Status</span>
+            <span>Updated</span>
+            <span>Job</span>
+            <span>Match</span>
+            <span>Actions</span>
           </div>
-        ))}
-      </section>
+          {versions.map((version) => (
+            <div
+              className={version.id === activeVersionId ? "version-row active" : "version-row"}
+              key={version.id}
+            >
+              <strong>{version.name}</strong>
+              <label className="status-select">
+                <span className={`status ${version.status}`}>{version.status}</span>
+                <select
+                  aria-label={`Status for ${version.name}`}
+                  value={version.status}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                    updateVersionStatus(version.id, event.target.value as ApplicationStatus)
+                  }
+                >
+                  {applicationStatuses.map((status) => (
+                    <option value={status} key={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span>{formatUpdated(version.updatedAt)}</span>
+              <span>{version.company === "Unknown company" ? version.jobTitle : version.company}</span>
+              <span className="score-mini">{version.matchScore}</span>
+              <div className="version-actions">
+                <button className="button quiet" onClick={() => openVersion(version.id)}>
+                  Open
+                </button>
+                <button className="button quiet" onClick={() => deleteVersion(version.id)}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : (
+        <section className="empty-version-state">
+          <h2>No application forks yet.</h2>
+          <p>
+            Paste a job description, review the computed diff, and accept the tailored draft to save
+            the first local version.
+          </p>
+          <button className="button primary" onClick={() => go("tailor")}>
+            Tailor to a JD
+          </button>
+        </section>
+      )}
     </main>
   );
 }

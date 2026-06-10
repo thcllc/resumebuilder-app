@@ -46,6 +46,18 @@ What you will do
   await expect(page).toHaveURL(/#editor$/);
   await expect(page.locator("textarea").last()).toHaveValue(/API Design/);
 
+  await page.getByRole("button", { name: "Versions" }).click();
+  await expect(page.getByText("Nimbus Labs - Senior Platform Product Designer")).toBeVisible();
+  await page
+    .getByLabel("Status for Nimbus Labs - Senior Platform Product Designer")
+    .selectOption("applied");
+  await expect(
+    page.getByLabel("Status for Nimbus Labs - Senior Platform Product Designer"),
+  ).toHaveValue("applied");
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page).toHaveURL(/#editor$/);
+  await expect(page.getByText("Editing fork:")).toBeVisible();
+
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "JSON" }).click();
   const download = await downloadPromise;

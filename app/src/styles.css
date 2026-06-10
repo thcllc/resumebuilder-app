@@ -339,6 +339,21 @@ button {
   color: var(--ink-3);
 }
 
+.version-context {
+  width: fit-content;
+  margin-top: 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bone);
+  color: var(--ink-3);
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.version-context strong {
+  color: var(--ink);
+}
+
 .error {
   border: 1px solid var(--accent);
   background: var(--accent-soft);
@@ -1086,7 +1101,7 @@ button {
 .version-head,
 .version-row {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) 120px 100px minmax(120px, 1fr) 80px;
+  grid-template-columns: minmax(220px, 2fr) 140px 90px minmax(120px, 1fr) 70px 170px;
   gap: 12px;
   align-items: center;
   padding: 13px 16px;
@@ -1103,6 +1118,28 @@ button {
 
 .version-row {
   border-top: 1px solid var(--line);
+}
+
+.version-row.active {
+  background: #fff8f4;
+}
+
+.status-select {
+  display: block;
+}
+
+.status-select .status {
+  display: none;
+}
+
+.status-select select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 6px 8px;
+  text-transform: capitalize;
 }
 
 .status {
@@ -1129,6 +1166,36 @@ button {
 .score-mini {
   font-family: var(--serif);
   font-size: 25px;
+}
+
+.version-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.empty-version-state {
+  max-width: 720px;
+  margin: 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 28px;
+  text-align: center;
+}
+
+.empty-version-state h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 400;
+}
+
+.empty-version-state p {
+  margin: 10px auto 18px;
+  max-width: 520px;
+  color: var(--ink-3);
+  line-height: 1.5;
 }
 
 .document-layout {

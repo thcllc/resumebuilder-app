@@ -211,15 +211,4 @@ export const toJsonResume = (resume: ResumeData) => ({
   skills: resume.skills.map(({ id: _id, ...item }) => item),
 });
 
-export const scoreResume = (resume: ResumeData) => {
-  const checks = [
-    { label: "Contact", pass: Boolean(resume.basics.email && resume.basics.phone) },
-    { label: "Summary", pass: resume.summary.trim().split(/\s+/).length >= 18 },
-    { label: "Experience", pass: resume.work.length >= 2 },
-    { label: "Impact", pass: resume.work.some((work) => work.highlights.some((line) => /\d/.test(line))) },
-    { label: "Skills", pass: resume.skills.some((skill) => skill.keywords.length >= 5) },
-  ];
-
-  const score = Math.round((checks.filter((check) => check.pass).length / checks.length) * 100);
-  return { score, checks };
-};
+export { scoreResume, type ResumeScore, type ResumeScoreCheck } from "./ats";
