@@ -1,6 +1,6 @@
 # Production Status
 
-Last verified: 2026-06-10 10:03 UTC.
+Last verified: 2026-06-10 10:11 UTC.
 
 ## Live App
 
@@ -31,9 +31,9 @@ The root JSX files are retained only as historical design reference. Do not trea
 
 ## Verification
 
-Verified implementation, CI workflow, and deployed app-code commit: `238de52a7f19e00e799b42fa1a671eeaa09284e0`.
+Latest code-bearing commit verified by CI: `85ffaa95188483e5d59318e617ea93efbeae0536`.
 
-GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27268623906`.
+GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27269038851`.
 
 CI status: success. The `app` job passed install, typecheck, Chromium browser install, Playwright smoke tests, and production build. The `docker` job passed the Docker image build.
 
@@ -61,7 +61,7 @@ curl -I https://resumebuilder.app
 
 Result: HTTP 200 from Cloudflare.
 
-Live smoke status: 13 Playwright tests passed against both `https://resumebuilder.app` and `https://2b152803.resumebuilderapp.pages.dev`.
+Live smoke status: 15 Playwright tests passed against `https://resumebuilder.app`.
 
 Local Playwright preview defaults to port `49217`; override with `PLAYWRIGHT_PORT` if that port is occupied. Local and deployed Playwright artifacts are separated under `test-results/local` and `test-results/deployed`.
 
@@ -76,7 +76,7 @@ Current smoke suite covers:
 
 ## Known External Verification Gaps
 
-- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27268623906`.
+- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27269038851`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
 - The Validate page, `node cli/resume.mjs validate`, and [VALIDATION.md](VALIDATION.md) now define the receipt format, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
 
