@@ -695,6 +695,57 @@ test.describe("resume CLI", () => {
         externalValidation: false,
         all: false,
       });
+      expect(report.blockers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "receipt.completion-shortfall" }),
+          expect.objectContaining({ id: "receipt.interview-shortfall" }),
+          expect.objectContaining({ id: "receipt.owner-acceptance" }),
+          expect.objectContaining({ id: "waiver.invalid-or-missing" }),
+        ]),
+      );
+      expect(report.nextActions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "collect-more-receipts", url: "https://resumebuilder.app/#validate" }),
+          expect.objectContaining({
+            id: "write-owner-acceptance",
+            command: expect.stringContaining("node app/cli/resume.mjs accept"),
+          }),
+          expect.objectContaining({
+            id: "optional-owner-waiver",
+            command: expect.stringContaining("VALIDATION_WAIVER.example.md"),
+          }),
+        ]),
+      );
+    }
+  });
+
+  test("prints release blockers and next actions in human-readable audits", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-empty-readable-"));
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "release",
+          "--input",
+          workspace,
+          "--require-completions",
+          "1",
+          "--require-interviews",
+          "0",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected release audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      expect(failure.stdout ?? "").toContain("Blockers:");
+      expect(failure.stdout ?? "").toContain("receipt.completion-shortfall");
+      expect(failure.stdout ?? "").toContain("Next actions:");
+      expect(failure.stdout ?? "").toContain("collect-more-receipts");
+      expect(failure.stdout ?? "").toContain("optional-owner-waiver");
     }
   });
 
@@ -744,6 +795,8 @@ test.describe("resume CLI", () => {
       externalValidation: true,
       all: true,
     });
+    expect(report.blockers).toEqual([]);
+    expect(report.nextActions).toEqual([]);
     expect(report.validation.acceptance).toMatchObject({
       provided: true,
       valid: true,
@@ -801,6 +854,21 @@ test.describe("resume CLI", () => {
         ownerAcceptedReceipts: 0,
         uniqueCompletionUsers: 0,
       });
+      expect(report.validation.ownerReview.completionReceiptIds).toEqual([
+        receiptOne.receiptId,
+        receiptTwo.receiptId,
+      ]);
+      expect(report.blockers).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: "receipt.owner-acceptance" })]),
+      );
+      expect(report.nextActions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "review-and-accept-receipts",
+            command: expect.stringContaining(`--receipt-ids ${receiptOne.receiptId},${receiptTwo.receiptId}`),
+          }),
+        ]),
+      );
     }
   });
 
@@ -883,6 +951,8 @@ test.describe("resume CLI", () => {
       externalValidation: true,
       all: true,
     });
+    expect(report.blockers).toEqual([]);
+    expect(report.nextActions).toEqual([]);
     expect(report.waiver).toMatchObject({
       provided: true,
       valid: true,

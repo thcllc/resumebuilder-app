@@ -115,3 +115,5 @@ node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RE
 ```
 
 The release audit exits zero only when the owner-accepted receipt cohort passes or the waiver file is explicit and structurally valid. Use [receipts/VALIDATION_WAIVER.example.md](receipts/VALIDATION_WAIVER.example.md) as the required waiver format.
+
+When the release audit fails, its JSON output includes `blockers` and `nextActions`. Use those fields as the authoritative machine-readable reason the project is not complete.

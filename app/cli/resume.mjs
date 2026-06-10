@@ -740,6 +740,11 @@ const defaultAcceptanceOutFor = async (input) => {
   return join(info.isDirectory() ? input : dirname(input), "ACCEPTED_RECEIPTS.json");
 };
 
+const defaultWaiverOutFor = async (input) => {
+  const info = await stat(input);
+  return join(info.isDirectory() ? input : dirname(input), "VALIDATION_WAIVER.md");
+};
+
 const shellToken = (value) => {
   const text = String(value ?? "");
   if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(text)) return text;
@@ -1004,14 +1009,104 @@ const printAcceptanceWrite = (report) => {
   console.log(`Owner: ${report.manifest.acceptedBy}`);
 };
 
+const releaseBlockersFor = ({ validation, waiver, externalValidation }) => {
+  if (externalValidation) return [];
+
+  const blockers = [];
+  if (validation.totals.invalidReceipts > 0) {
+    blockers.push({
+      id: "receipt.invalid",
+      message: "Fix or remove invalid validation receipt files.",
+      evidence: `${validation.totals.invalidReceipts} invalid receipt(s)`,
+    });
+  }
+  if (!validation.gates.fiveUserCompletion) {
+    blockers.push({
+      id: "receipt.completion-shortfall",
+      message: "Collect enough owner-accepted completion receipts from unique non-anonymous testers.",
+      evidence: `${validation.totals.uniqueCompletionUsers}/${validation.requirements.uniqueCompletionUsers} unique completion users`,
+    });
+  }
+  if (!validation.gates.interviewProduction) {
+    blockers.push({
+      id: "receipt.interview-shortfall",
+      message: "Collect enough owner-accepted interview-producing receipts inside the configured window.",
+      evidence: `${validation.totals.bestInterviewWindowCount}/${validation.requirements.interviewProducingReceipts} interview-producing receipts in ${validation.requirements.interviewWindowDays} days`,
+    });
+  }
+  if (!validation.gates.ownerAcceptance) {
+    blockers.push({
+      id: "receipt.owner-acceptance",
+      message: "Write a valid owner acceptance manifest for explicit reviewed receipt ids.",
+      evidence: validation.acceptance.errors.join("; ") || "Owner acceptance manifest is not valid",
+    });
+  }
+  if (!waiver.valid) {
+    blockers.push({
+      id: "waiver.invalid-or-missing",
+      message: "Provide an explicit valid owner waiver only if the owner chooses to waive external validation.",
+      evidence: waiver.errors.join("; ") || "Owner waiver is not valid",
+    });
+  }
+
+  return blockers;
+};
+
+const releaseNextActionsFor = ({ validation, waiver, acceptedPath, waiverPath }) => {
+  if (validation.gates.all || waiver.valid) return [];
+
+  const actions = [];
+  if (validation.totals.invalidReceipts > 0) {
+    actions.push({
+      id: "fix-invalid-receipts",
+      command: `node app/cli/resume.mjs validate --input ${shellToken(validation.input)} --json`,
+      description: "Inspect receipt errors, then remove or replace invalid receipt files.",
+    });
+  }
+  if (!validation.gates.fiveUserCompletion || !validation.gates.interviewProduction) {
+    actions.push({
+      id: "collect-more-receipts",
+      url: "https://resumebuilder.app/#validate",
+      description: "Run the tester campaign until countable receipts satisfy completion and interview gates.",
+    });
+  }
+  if (!validation.gates.ownerAcceptance && validation.ownerReview.acceptanceCommand) {
+    actions.push({
+      id: "review-and-accept-receipts",
+      command: validation.ownerReview.acceptanceCommand,
+      description: "Review candidate receipt files, then accept only ids the owner explicitly approves.",
+    });
+  } else if (!validation.gates.ownerAcceptance) {
+    actions.push({
+      id: "write-owner-acceptance",
+      command: `node app/cli/resume.mjs accept --input ${shellToken(validation.input)} --out ${shellToken(acceptedPath)} --owner ${shellToken("OWNER NAME")} --receipt-ids ${shellToken("rbv-1234abcd")}`,
+      description: "Write an owner acceptance manifest after countable receipt ids exist.",
+    });
+  }
+  if (!waiver.valid) {
+    actions.push({
+      id: "optional-owner-waiver",
+      command: `cp receipts/VALIDATION_WAIVER.example.md ${shellToken(waiverPath)}`,
+      description: "Use only if the owner explicitly waives the real-user validation gate.",
+    });
+  }
+
+  return actions;
+};
+
 const auditReleaseReadiness = async (flags) => {
+  const input = flags.input || "receipts";
   const validation = await auditValidationReceipts({
     ...flags,
-    input: flags.input || "receipts",
+    input,
     requireAccepted: true,
   });
   const waiver = await validateOwnerWaiver(flags.waiver);
   const externalValidation = validation.gates.all || waiver.valid;
+  const acceptedPath = flags.accepted || (await defaultAcceptanceOutFor(validation.input));
+  const waiverPath = flags.waiver || (await defaultWaiverOutFor(validation.input));
+  const blockers = releaseBlockersFor({ validation, waiver, externalValidation });
+  const nextActions = releaseNextActionsFor({ validation, waiver, acceptedPath, waiverPath });
 
   return {
     schema: "resumebuilder.release-audit.v1",
@@ -1024,9 +1119,13 @@ const auditReleaseReadiness = async (flags) => {
       gates: validation.gates,
       totals: validation.totals,
       bestInterviewWindow: validation.bestInterviewWindow,
+      requirements: validation.requirements,
+      ownerReview: validation.ownerReview,
       acceptance: validation.acceptance,
     },
     waiver,
+    blockers,
+    nextActions,
     gates: {
       receipts: validation.gates.all,
       ownerWaiver: waiver.valid,
@@ -1042,6 +1141,18 @@ const printReleaseAudit = (report) => {
   console.log(`Owner waiver: ${report.gates.ownerWaiver ? "pass" : "fail"}`);
   if (report.waiver.errors.length) {
     console.log(`Waiver errors: ${report.waiver.errors.join("; ")}`);
+  }
+  if (report.blockers.length) {
+    console.log("Blockers:");
+    for (const blocker of report.blockers) {
+      console.log(`- ${blocker.id}: ${blocker.evidence}`);
+    }
+  }
+  if (report.nextActions.length) {
+    console.log("Next actions:");
+    for (const action of report.nextActions) {
+      console.log(`- ${action.id}: ${action.command ?? action.url}`);
+    }
   }
   console.log(`External validation: ${report.gates.externalValidation ? "pass" : "fail"}`);
   console.log(`Result: ${report.gates.all ? "pass" : "fail"}`);
