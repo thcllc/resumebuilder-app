@@ -43,6 +43,12 @@ Export normalized JSON and PDF:
 node cli/resume.mjs export --input resume.json --out exports --json --pdf
 ```
 
+Audit exported validation receipts:
+
+```bash
+node cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
+```
+
 ## Docker
 
 ```bash
@@ -76,7 +82,7 @@ Current required checks are typecheck, Playwright smoke tests, production build,
 
 ## Validation
 
-The app has a local Validate page that exports `rbv-*.json` receipts after a tester completes the core resume/JD/diff/export loop. Receipts are tester-controlled and do not include the full resume body or pasted job description body.
+The app has a local Validate page that exports `rbv-*.json` receipts after a tester completes the core resume/JD/diff/export loop. Receipts are tester-controlled and do not include the full resume body or pasted job description body. Use `node cli/resume.mjs validate --input receipts --json` to audit a receipt cohort.
 
 ## License
 

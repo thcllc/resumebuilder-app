@@ -27,7 +27,7 @@ The root JSX files are retained only as historical design reference. Do not trea
 - Social: generated local audit for LinkedIn, GitHub, portfolio, and old public-post cleanup.
 - Interview: generated local interview prep from the current resume and JD.
 - Validate: local tester-controlled receipts for five-user completion and interview-producing outcome evidence.
-- Self-host: documented Cloudflare Pages, Docker, local CLI, CI, and plugin SDK paths.
+- Self-host: documented Cloudflare Pages, Docker, local CLI, validation receipt audit, CI, and plugin SDK paths.
 
 ## Verification
 
@@ -69,7 +69,7 @@ Current smoke suite covers:
 
 - ATS scoring corpus.
 - Deterministic PDF generation.
-- CLI scoring and JSON/PDF export.
+- CLI scoring, JSON/PDF export, and validation receipt cohort audit.
 - Template plugin SDK.
 - Validation receipt generation without embedding full resume or JD bodies.
 - Full browser path from edit through JD tailoring, diff accept, versions, JSON/PDF export, letter, outreach, interview, social, validation receipt export, and self-host surfaces.
@@ -78,7 +78,7 @@ Current smoke suite covers:
 
 - Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27268623906`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
-- The Validate page and [VALIDATION.md](VALIDATION.md) now define the receipt format and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
+- The Validate page, `node cli/resume.mjs validate`, and [VALIDATION.md](VALIDATION.md) now define the receipt format, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
 
 ## Release Gate
 

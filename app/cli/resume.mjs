@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 const actionVerbs = [
@@ -44,6 +44,7 @@ const usage = () => `resume/ CLI
 Usage:
   node cli/resume.mjs score --input resume.json
   node cli/resume.mjs export --input resume.json --out exports --json --pdf
+  node cli/resume.mjs validate --input receipts --json
 `;
 
 const normalizeResume = (raw) => ({
@@ -169,6 +170,225 @@ const readResume = async (input) => {
   return normalizeResume(JSON.parse(await readFile(input, "utf8")));
 };
 
+const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const toNumber = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+};
+
+const receiptFilesFor = async (input) => {
+  if (!input) throw new Error("--input is required");
+  const info = await stat(input);
+  if (info.isFile()) return [input];
+  if (!info.isDirectory()) throw new Error(`Input is not a file or directory: ${input}`);
+
+  const entries = await readdir(input, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const path = join(input, entry.name);
+      if (entry.isDirectory()) return receiptFilesFor(path);
+      return entry.isFile() && entry.name.endsWith(".json") ? [path] : [];
+    }),
+  );
+  return nested.flat().sort();
+};
+
+const validateReceiptShape = (receipt) => {
+  const errors = [];
+  if (!isObject(receipt)) return ["Receipt is not an object"];
+  if (receipt.schema !== "resumebuilder.validation.v1") errors.push("schema must be resumebuilder.validation.v1");
+  if (receipt.app !== "resumebuilderapp") errors.push("app must be resumebuilderapp");
+  if (typeof receipt.receiptId !== "string" || !/^rbv-[a-f0-9]{8}$/.test(receipt.receiptId)) {
+    errors.push("receiptId must match rbv-xxxxxxxx");
+  }
+  if (Number.isNaN(Date.parse(receipt.createdAt ?? ""))) errors.push("createdAt must be an ISO timestamp");
+
+  if (!isObject(receipt.privacy)) errors.push("privacy is required");
+  else {
+    if (receipt.privacy.localOnly !== true) errors.push("privacy.localOnly must be true");
+    if (receipt.privacy.noAccount !== true) errors.push("privacy.noAccount must be true");
+    if (receipt.privacy.containsResumeBody !== false) errors.push("receipt must not contain resume body");
+    if (receipt.privacy.containsJobDescriptionBody !== false) errors.push("receipt must not contain JD body");
+  }
+
+  if (!isObject(receipt.tester) || typeof receipt.tester.label !== "string") {
+    errors.push("tester.label is required");
+  }
+
+  if (!isObject(receipt.completion)) errors.push("completion is required");
+  else {
+    if (typeof receipt.completion.coreFlowComplete !== "boolean") {
+      errors.push("completion.coreFlowComplete must be boolean");
+    }
+    if (typeof receipt.completion.interviewOutcomeRecorded !== "boolean") {
+      errors.push("completion.interviewOutcomeRecorded must be boolean");
+    }
+    if (!Number.isInteger(receipt.completion.requiredPassed)) {
+      errors.push("completion.requiredPassed must be integer");
+    }
+    if (!Number.isInteger(receipt.completion.requiredTotal)) {
+      errors.push("completion.requiredTotal must be integer");
+    }
+    if (
+      Number.isInteger(receipt.completion.requiredPassed) &&
+      Number.isInteger(receipt.completion.requiredTotal) &&
+      receipt.completion.coreFlowComplete !==
+        (receipt.completion.requiredPassed === receipt.completion.requiredTotal)
+    ) {
+      errors.push("completion.coreFlowComplete must match requiredPassed/requiredTotal");
+    }
+  }
+
+  if (!Array.isArray(receipt.criteria) || receipt.criteria.length === 0) {
+    errors.push("criteria must be a non-empty array");
+  } else {
+    const failed = receipt.criteria.filter((criterion) => !criterion?.pass).length;
+    if (receipt.completion?.coreFlowComplete === true && failed > 0) {
+      errors.push("coreFlowComplete cannot be true while criteria fail");
+    }
+  }
+
+  if (!isObject(receipt.outcome) || typeof receipt.outcome.status !== "string") {
+    errors.push("outcome.status is required");
+  }
+
+  if (!isObject(receipt.fingerprints)) errors.push("fingerprints are required");
+  else {
+    if (typeof receipt.fingerprints.resume !== "string") errors.push("fingerprints.resume is required");
+    if (typeof receipt.fingerprints.jobDescription !== "string") {
+      errors.push("fingerprints.jobDescription is required");
+    }
+  }
+
+  return errors;
+};
+
+const bestWindowFor = (receipts, windowDays) => {
+  const windowMs = windowDays * 24 * 60 * 60 * 1000;
+  const sorted = receipts
+    .map((receipt) => ({ ...receipt, timestamp: Date.parse(receipt.createdAt) }))
+    .filter((receipt) => Number.isFinite(receipt.timestamp))
+    .sort((left, right) => left.timestamp - right.timestamp);
+
+  let best = { count: 0, start: "", end: "", receiptIds: [] };
+  for (let startIndex = 0; startIndex < sorted.length; startIndex += 1) {
+    const start = sorted[startIndex].timestamp;
+    const end = start + windowMs;
+    const window = sorted.filter((receipt) => receipt.timestamp >= start && receipt.timestamp <= end);
+    if (window.length > best.count) {
+      best = {
+        count: window.length,
+        start: new Date(start).toISOString(),
+        end: new Date(end).toISOString(),
+        receiptIds: window.map((receipt) => receipt.receiptId),
+      };
+    }
+  }
+  return best;
+};
+
+const auditValidationReceipts = async (flags) => {
+  const files = await receiptFilesFor(flags.input);
+  const records = [];
+
+  for (const file of files) {
+    let receipt = null;
+    let errors = [];
+    try {
+      receipt = JSON.parse(await readFile(file, "utf8"));
+      errors = validateReceiptShape(receipt);
+    } catch (error) {
+      errors = [`Invalid JSON: ${error.message}`];
+    }
+
+    const tester = receipt?.tester?.label?.trim() ?? "";
+    const testerKey = tester.toLowerCase();
+    const coreFlowComplete = receipt?.completion?.coreFlowComplete === true;
+    const interviewOutcome =
+      receipt?.outcome?.status === "interview" || receipt?.outcome?.status === "offer";
+    const hasOutcomeNotes = Boolean(receipt?.outcome?.notes?.trim());
+    const countableCompletion =
+      errors.length === 0 && coreFlowComplete && testerKey && testerKey !== "anonymous tester";
+    const countableInterview = countableCompletion && interviewOutcome && hasOutcomeNotes;
+
+    records.push({
+      file,
+      receiptId: receipt?.receiptId ?? basename(file),
+      tester: tester || "missing",
+      createdAt: receipt?.createdAt ?? "",
+      coreFlowComplete,
+      outcome: receipt?.outcome?.status ?? "missing",
+      countableCompletion,
+      countableInterview,
+      errors,
+    });
+  }
+
+  const completionUsers = new Set(
+    records.filter((record) => record.countableCompletion).map((record) => record.tester.toLowerCase()),
+  );
+  const interviewReceipts = records.filter((record) => record.countableInterview);
+  const requiredCompletions = toNumber(flags["require-completions"], 5);
+  const requiredInterviews = toNumber(flags["require-interviews"], 10);
+  const windowDays = Math.max(1, toNumber(flags["window-days"], 7));
+  const bestInterviewWindow = bestWindowFor(interviewReceipts, windowDays);
+  const invalidReceipts = records.filter((record) => record.errors.length > 0).length;
+  const gates = {
+    fiveUserCompletion: completionUsers.size >= requiredCompletions,
+    interviewProduction: bestInterviewWindow.count >= requiredInterviews,
+    noInvalidReceipts: invalidReceipts === 0,
+  };
+
+  return {
+    schema: "resumebuilder.validation-audit.v1",
+    generatedAt: new Date().toISOString(),
+    input: flags.input,
+    requirements: {
+      uniqueCompletionUsers: requiredCompletions,
+      interviewProducingReceipts: requiredInterviews,
+      interviewWindowDays: windowDays,
+    },
+    totals: {
+      files: files.length,
+      validReceipts: files.length - invalidReceipts,
+      invalidReceipts,
+      completeReceipts: records.filter((record) => record.countableCompletion).length,
+      uniqueCompletionUsers: completionUsers.size,
+      interviewProducingReceipts: interviewReceipts.length,
+      bestInterviewWindowCount: bestInterviewWindow.count,
+    },
+    bestInterviewWindow,
+    gates: {
+      ...gates,
+      all: gates.fiveUserCompletion && gates.interviewProduction && gates.noInvalidReceipts,
+    },
+    receipts: records,
+  };
+};
+
+const printValidationAudit = (report) => {
+  console.log("Validation receipt audit");
+  console.log(`Input: ${report.input}`);
+  console.log(`Receipts: ${report.totals.validReceipts}/${report.totals.files} valid`);
+  console.log(
+    `Five-user gate: ${report.totals.uniqueCompletionUsers}/${report.requirements.uniqueCompletionUsers} unique completion users`,
+  );
+  console.log(
+    `Interview gate: ${report.totals.bestInterviewWindowCount}/${report.requirements.interviewProducingReceipts} interview-producing receipts in ${report.requirements.interviewWindowDays} days`,
+  );
+  if (report.bestInterviewWindow.start) {
+    console.log(`Best interview window: ${report.bestInterviewWindow.start} to ${report.bestInterviewWindow.end}`);
+  }
+  if (report.totals.invalidReceipts) {
+    console.log("Invalid receipts:");
+    for (const receipt of report.receipts.filter((record) => record.errors.length > 0)) {
+      console.log(`- ${receipt.file}: ${receipt.errors.join("; ")}`);
+    }
+  }
+  console.log(`Result: ${report.gates.all ? "pass" : "fail"}`);
+};
+
 const main = async () => {
   const flags = parseArgs(process.argv.slice(2));
   if (!flags.command || flags.help) {
@@ -176,14 +396,14 @@ const main = async () => {
     return;
   }
 
-  const resume = await readResume(flags.input);
-
   if (flags.command === "score") {
+    const resume = await readResume(flags.input);
     console.log(JSON.stringify(scoreResume(resume), null, 2));
     return;
   }
 
   if (flags.command === "export") {
+    const resume = await readResume(flags.input);
     const out = flags.out || "exports";
     await mkdir(out, { recursive: true });
     const base = basename(flags.input, ".json") || "resume";
@@ -194,6 +414,14 @@ const main = async () => {
       await writeFile(join(out, `${base}.pdf`), createPdf(resume));
     }
     console.log(`Exported ${base} to ${out}`);
+    return;
+  }
+
+  if (flags.command === "validate") {
+    const report = await auditValidationReceipts(flags);
+    if (flags.json) console.log(JSON.stringify(report, null, 2));
+    else printValidationAudit(report);
+    if (!report.gates.all) process.exitCode = 1;
     return;
   }
 
