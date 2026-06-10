@@ -71,13 +71,17 @@ The CLI auditor counts a completion receipt only when `attestations.noOperatorAs
 
 Raw receipt audits prove whether files are structurally valid and countable. Release readiness requires owner acceptance of specific receipt ids.
 
+The live Validate page includes a local owner receipt intake panel. Import returned `rbv-*.json` files there to inspect valid files, invalid receipt errors, unique completion users, interview-producing receipts, and owner review candidate ids without uploading evidence to a server.
+
+After reviewing candidates in the browser, enter the real owner name and export `ACCEPTED_RECEIPTS.json`. The browser blocks placeholder owner names such as `TODO`; place the downloaded manifest beside the returned receipts before running the release audit.
+
 Review the audit output, then write the private acceptance manifest with explicit receipt ids:
 
 ```bash
 node app/cli/resume.mjs accept --input receipts --out receipts/ACCEPTED_RECEIPTS.json --owner "OWNER NAME" --receipt-ids rbv-1234abcd,rbv-5678efab
 ```
 
-The `accept` command refuses missing, duplicate, malformed, structurally invalid, incomplete, anonymous, or assisted receipt ids. Use [receipts/ACCEPTED_RECEIPTS.example.json](receipts/ACCEPTED_RECEIPTS.example.json) only as the schema reference.
+The `accept` command is the CLI path for writing the same manifest. It refuses missing, duplicate, malformed, structurally invalid, incomplete, anonymous, or assisted receipt ids. Use [receipts/ACCEPTED_RECEIPTS.example.json](receipts/ACCEPTED_RECEIPTS.example.json) only as the schema reference.
 
 `receipts/ACCEPTED_RECEIPTS.json` is private evidence and is ignored by Git.
 
