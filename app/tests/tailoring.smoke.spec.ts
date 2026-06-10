@@ -119,6 +119,8 @@ What you will do
   await expect(page.getByRole("heading", { name: "Export evidence the core loop worked." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start new run" })).toBeVisible();
   await expect(page.getByText("Core flow")).toBeVisible();
+  await expect(page.getByText("Owner intake command")).toBeVisible();
+  await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
   await expect(page.getByText("Complete", { exact: true })).toBeVisible();
   await page.getByLabel("Tester label").fill("tester-01");
   await page.getByLabel("Outcome", { exact: true }).selectOption("interview");

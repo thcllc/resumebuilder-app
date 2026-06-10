@@ -23,6 +23,8 @@ Collect five exported `rbv-*.json` receipts where `completion.coreFlowComplete` 
 
 Put exported receipts in `receipts/` at the repository root. Receipt JSON files are ignored by Git in that folder.
 
+Use [receipts/COLLECTION.md](receipts/COLLECTION.md) as the tester handoff and owner intake runbook.
+
 Audit the receipt folder locally:
 
 ```bash

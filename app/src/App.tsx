@@ -2137,6 +2137,14 @@ function ValidationPage({
       </section>
 
       <section className="validation-protocol">
+        <article className="code-card wide">
+          <span>Owner intake command</span>
+          <p>
+            Put tester-controlled <code>rbv-*.json</code> files in the repository{" "}
+            <code>receipts/</code> folder, then audit the cohort locally.
+          </p>
+          <pre>{`node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7`}</pre>
+        </article>
         <article className="code-card">
           <span>2026-07-15 gate</span>
           <p>
