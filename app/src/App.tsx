@@ -32,6 +32,7 @@ import {
   scoreResume,
   toJsonResume,
 } from "./lib/resume";
+import { analyzeTailoring, type TailoringAnalysis } from "./lib/tailoring";
 
 type Template =
   | "kraft"
@@ -103,42 +104,6 @@ What you will do
 - Partner with engineers on API design and developer experience
 - Evolve our design system and prototyping culture
 - Ship continuously in production`;
-
-const keywords = [
-  { label: "design systems", hit: true, weight: "high" },
-  { label: "platform", hit: true, weight: "high" },
-  { label: "prototyping", hit: true, weight: "medium" },
-  { label: "developer experience", hit: true, weight: "high" },
-  { label: "api design", hit: false, weight: "high" },
-  { label: "serverless", hit: false, weight: "low" },
-  { label: "edge functions", hit: false, weight: "low" },
-  { label: "figma", hit: true, weight: "medium" },
-];
-
-const diffRows = [
-  {
-    section: "Summary",
-    reason: "Lead with platform because the JD opens there.",
-    before:
-      "Product designer with 7 years shipping tools for developers and designers. Led design for Figma's plugin ecosystem; before that, built the first design system at Linear.",
-    after:
-      "Platform product designer with 7 years shipping tools for developers. Led design for Figma's Plugin API, API design, developer experience, and Linear's first design system.",
-  },
-  {
-    section: "Figma bullet",
-    reason: "Name API design explicitly; it appears repeatedly in the JD.",
-    before:
-      "Led end-to-end design for the Plugin API v3, adopted by 14,000+ developers and surfaced across 9M files in the first year.",
-    after:
-      "Led end-to-end design for Plugin API v3, an API design and developer experience effort adopted by 14,000+ developers and surfaced across 9M files.",
-  },
-  {
-    section: "Skills",
-    reason: "Swap role-irrelevant tools for Vercel-facing language.",
-    before: "Product design, Design systems, Prototyping, Figma, User research, React",
-    after: "Product design, Design systems, Prototyping, Figma, React, API design, Developer experience",
-  },
-];
 
 const versionRows = [
   { name: "Maya Chen - base", status: "draft", updated: "today", jd: "-", score: 68 },
@@ -262,7 +227,7 @@ const socialProfiles: Record<
       "I design developer-facing platform products: APIs, dashboards, design systems, and workflows that help teams ship with less friction.",
     checks: [
       { label: "Headline mirrors target role", state: "done", note: "Platform, API design, and design systems are visible." },
-      { label: "Featured work links", state: "fix", note: "Add Plugin API v3 case study and one resume PDF." },
+      { label: "Featured work links", state: "fix", note: "Add Plugin API v3 case study and one print-ready resume." },
       { label: "About section hook", state: "done", note: "First line states the category of work clearly." },
       { label: "Experience bullets", state: "watch", note: "Move metrics above soft responsibilities." },
       { label: "Skills order", state: "fix", note: "Pin API design, developer experience, systems, and prototyping." },
@@ -317,7 +282,7 @@ const socialProfiles: Record<
   },
   portfolio: {
     score: 84,
-    headline: "Portfolio should answer fit before the recruiter opens a PDF.",
+    headline: "Portfolio should answer fit before the recruiter opens a resume export.",
     about:
       "The portfolio homepage should make the same promise as the tailored resume: platform design, API design, systems work, and measurable outcomes.",
     checks: [
@@ -325,7 +290,7 @@ const socialProfiles: Record<
       { label: "Case study order", state: "done", note: "Plugin API first, Linear system second." },
       { label: "Outcome metrics", state: "watch", note: "Put adoption and retention metrics in the first viewport." },
       { label: "Contact path", state: "fix", note: "Add email and LinkedIn in footer and header." },
-      { label: "Resume link", state: "fix", note: "Link tailored PDF and JSON Resume export." },
+      { label: "Resume link", state: "fix", note: "Link tailored print view and JSON Resume export." },
     ],
     polish: [
       {
@@ -492,6 +457,7 @@ export function App() {
   const [interviewTab, setInterviewTab] = useState<InterviewTab>("technical");
   const inputRef = useRef<HTMLInputElement>(null);
   const score = useMemo(() => scoreResume(resume), [resume]);
+  const tailoringAnalysis = useMemo(() => analyzeTailoring(resume, jd), [resume, jd]);
   const activeWork = resume.work.find((work) => work.id === activeWorkId) ?? resume.work[0];
 
   useEffect(() => {
@@ -624,40 +590,14 @@ export function App() {
     downloadFile("resume.json", "application/json", JSON.stringify(toJsonResume(resume), null, 2));
   };
 
-  const applyTailoredDraft = () => {
-    setResume((current) => ({
-      ...current,
-      summary:
-        "Platform product designer with 7 years shipping tools for developers. Led design for Figma's Plugin API, API design, developer experience, and Linear's first design system.",
-      work: current.work.map((work, index) =>
-        index === 0
-          ? {
-              ...work,
-              highlights: [
-                "Led end-to-end design for Plugin API v3, an API design and developer experience effort adopted by 14,000+ developers and surfaced across 9M files.",
-                "Redesigned plugin platform surfaces across dashboards, settings, and install flows, lifting install-through rate 38%.",
-                "Evolved the platform design system, 120+ components used by 6 product teams.",
-              ],
-            }
-          : work,
-      ),
-      skills: [
-        {
-          id: current.skills[0]?.id ?? "skill-core",
-          name: "Core",
-          keywords: [
-            "Product design",
-            "Design systems",
-            "Prototyping",
-            "Figma",
-            "React",
-            "API design",
-            "Developer experience",
-          ],
-        },
-      ],
-    }));
+  const reviewTailoredDraft = () => {
     go("diff");
+  };
+
+  const acceptTailoredDraft = () => {
+    setResume(tailoringAnalysis.draftResume);
+    setActiveWorkId(tailoringAnalysis.draftResume.work[0]?.id ?? "");
+    go("editor");
   };
 
   return (
@@ -705,7 +645,7 @@ export function App() {
           </button>
           <button className="button primary" onClick={() => window.print()}>
             <Printer size={16} />
-            PDF
+            Print
           </button>
         </div>
       </header>
@@ -736,14 +676,16 @@ export function App() {
       )}
       {page === "tailor" && (
         <TailorPage
-          resume={resume}
           jd={jd}
           setJd={setJd}
           template={template}
-          applyTailoredDraft={applyTailoredDraft}
+          analysis={tailoringAnalysis}
+          reviewTailoredDraft={reviewTailoredDraft}
         />
       )}
-      {page === "diff" && <DiffPage resume={resume} applyTailoredDraft={applyTailoredDraft} />}
+      {page === "diff" && (
+        <DiffPage analysis={tailoringAnalysis} acceptTailoredDraft={acceptTailoredDraft} />
+      )}
       {page === "templates" && (
         <TemplatesPage resume={resume} template={template} setTemplate={setTemplate} go={go} />
       )}
@@ -808,7 +750,7 @@ function HomePage({
 
       <section className="feature-band">
         {[
-          ["Editor", "Split form and live paper preview with browser PDF export."],
+          ["Editor", "Split form and live paper preview with browser print export."],
           ["Tailor", "Paste a job description and review structured suggestions."],
           ["Beyond", "Cover letter, outreach, and interview prep from the same resume."],
           ["Open", "Self-hostable posture with CLI, Docker, and plugin SDK path."],
@@ -871,7 +813,7 @@ function EditorPage({
         <div className="sidebar-section">
           <div className="eyebrow">Templates</div>
           <div className="template-list" role="tablist" aria-label="Resume templates">
-            {templates.slice(0, 3).map((item) => (
+            {templates.map((item) => (
               <button
                 key={item.id}
                 className={template === item.id ? "template active" : "template"}
@@ -1008,83 +950,116 @@ function EditorPage({
 }
 
 function TailorPage({
-  resume,
   jd,
   setJd,
   template,
-  applyTailoredDraft,
+  analysis,
+  reviewTailoredDraft,
 }: {
-  resume: ResumeData;
   jd: string;
   setJd: (value: string) => void;
   template: Template;
-  applyTailoredDraft: () => void;
+  analysis: TailoringAnalysis;
+  reviewTailoredDraft: () => void;
 }) {
+  const hasPatches = analysis.patches.length > 0;
+
   return (
     <main className="tailor-layout">
       <section className="jd-panel">
         <div className="panel-head">
           <div>
             <div className="eyebrow">Job description</div>
-            <h1>Senior Product Designer</h1>
-            <p>Vercel - Remote - pasted locally</p>
+            <h1>{analysis.job.title}</h1>
+            <p>
+              {analysis.job.source === "parsed"
+                ? `${analysis.job.company} - pasted locally`
+                : "Paste a job description to analyze locally"}
+            </p>
           </div>
-          <button className="button primary" onClick={applyTailoredDraft}>
+          <button className="button primary" onClick={reviewTailoredDraft}>
             <Sparkles size={16} />
-            Re-tailor
+            Review diff
           </button>
         </div>
-        <textarea className="jd-textarea" value={jd} onChange={(event) => setJd(event.target.value)} />
+        <textarea
+          aria-label="Job description"
+          className="jd-textarea"
+          value={jd}
+          onChange={(event) => setJd(event.target.value)}
+        />
       </section>
 
       <aside className="analysis-panel">
-        <MetricCard label="Match score" value="82" note="+14 vs base" />
+        <MetricCard
+          label="Match score"
+          value={String(analysis.score.tailored)}
+          note={
+            analysis.score.delta > 0
+              ? `+${analysis.score.delta} vs base`
+              : `${analysis.score.base} base score`
+          }
+        />
         <div className="keyword-list">
           <div className="eyebrow">Keywords</div>
-          {keywords.map((keyword) => (
-            <div className="keyword-row" key={keyword.label}>
-              <span className={keyword.hit ? "keyword-dot hit" : "keyword-dot"}>{keyword.hit ? <Check size={11} /> : null}</span>
-              <span>{keyword.label}</span>
-              <small>{keyword.weight}</small>
-            </div>
-          ))}
+          {analysis.keywords.length ? (
+            analysis.keywords.map((keyword) => (
+              <div className="keyword-row" key={keyword.label}>
+                <span className={keyword.hit ? "keyword-dot hit" : "keyword-dot"}>
+                  {keyword.hit ? <Check size={11} /> : null}
+                </span>
+                <span>{keyword.label}</span>
+                <small>{keyword.weight}</small>
+              </div>
+            ))
+          ) : (
+            <p className="empty-state">Paste a detailed JD to compute keyword gaps.</p>
+          )}
         </div>
         <div className="suggestion-list">
           <div className="eyebrow">Suggested edits</div>
-          {diffRows.map((row) => (
-            <button className="suggestion-card" key={row.section} onClick={applyTailoredDraft}>
-              <strong>{row.section}</strong>
-              <span>{row.reason}</span>
-            </button>
-          ))}
+          {hasPatches ? (
+            analysis.patches.map((row) => (
+              <button className="suggestion-card" key={row.target} onClick={reviewTailoredDraft}>
+                <strong>{row.target}</strong>
+                <span>{row.reason}</span>
+              </button>
+            ))
+          ) : (
+            <p className="empty-state">
+              No safe resume edits yet. Add more JD detail or resume proof before accepting changes.
+            </p>
+          )}
         </div>
       </aside>
 
       <section className="tailored-preview">
         <div className="preview-toolbar">
-          <span>Tailored draft - v2</span>
+          <span>{hasPatches ? "Tailored draft" : "Current resume preview"}</span>
         </div>
-        <ResumePaper resume={resume} template={template} />
+        <ResumePaper resume={analysis.draftResume} template={template} />
       </section>
     </main>
   );
 }
 
 function DiffPage({
-  resume,
-  applyTailoredDraft,
+  analysis,
+  acceptTailoredDraft,
 }: {
-  resume: ResumeData;
-  applyTailoredDraft: () => void;
+  analysis: TailoringAnalysis;
+  acceptTailoredDraft: () => void;
 }) {
+  const hasPatches = analysis.patches.length > 0;
+
   return (
     <main className="content-page">
       <PageHeader
         kicker="AI diff"
         title="Every change shows its receipt."
-        body="Suggestions are patch-shaped: target, rationale, confidence, before, after."
+        body="Suggestions are patch-shaped: target, rationale, before, after."
         action={
-          <button className="button primary" onClick={applyTailoredDraft}>
+          <button className="button primary" onClick={acceptTailoredDraft} disabled={!hasPatches}>
             <Check size={16} />
             Accept all
           </button>
@@ -1092,27 +1067,39 @@ function DiffPage({
       />
       <div className="diff-grid">
         <section className="diff-list">
-          {diffRows.map((row) => (
-            <article className="diff-card" key={row.section}>
+          {hasPatches ? (
+            analysis.patches.map((row) => (
+              <article className="diff-card" key={row.target}>
+                <header>
+                  <span>{row.target}</span>
+                  <p>{row.reason}</p>
+                </header>
+                <div className="diff-columns">
+                  <div>
+                    <div className="diff-label minus">Before</div>
+                    <p>{row.before}</p>
+                  </div>
+                  <div>
+                    <div className="diff-label plus">After</div>
+                    <p>{row.after}</p>
+                  </div>
+                </div>
+              </article>
+            ))
+          ) : (
+            <article className="diff-card">
               <header>
-                <span>{row.section}</span>
-                <p>{row.reason}</p>
+                <span>No safe patches</span>
+                <p>
+                  The current JD did not produce supported resume edits. Add more JD detail or add
+                  truthful resume proof before accepting a tailored draft.
+                </p>
               </header>
-              <div className="diff-columns">
-                <div>
-                  <div className="diff-label minus">Before</div>
-                  <p>{row.before}</p>
-                </div>
-                <div>
-                  <div className="diff-label plus">After</div>
-                  <p>{row.after}</p>
-                </div>
-              </div>
             </article>
-          ))}
+          )}
         </section>
         <aside className="diff-paper">
-          <ResumePaper resume={resume} template="kraft" compact />
+          <ResumePaper resume={analysis.draftResume} template="kraft" compact />
         </aside>
       </div>
     </main>
@@ -1175,6 +1162,7 @@ function VersionsPage() {
         title="One resume. Many forks."
         body="Each application keeps its own local patch set while the base resume stays intact."
       />
+      <PrototypeNotice detail="Version rows are sample data until local application forks are implemented." />
       <section className="version-table">
         <div className="version-head">
           <span>Resume</span>
@@ -1207,6 +1195,7 @@ function CoverLetterPage({
   return (
     <main className="document-layout">
       <aside className="document-controls">
+        <PrototypeNotice detail="Cover letters are a prototype surface and do not consume the current JD yet." />
         <div className="panel-head compact">
           <div>
             <div className="eyebrow">Cover letter</div>
@@ -1261,6 +1250,7 @@ function OutreachPage({
         title="Three drafts to pick from."
         body="Short, channel-aware messages generated from the resume and job context."
       />
+      <PrototypeNotice detail="Outreach drafts are sample copy until they consume the current resume and JD." />
       <Segmented<OutreachChannel>
         label="Channel"
         value={channel}
@@ -1302,6 +1292,7 @@ function SocialPage({
         title="Make every public profile support the application."
         body="Audit LinkedIn, GitHub, portfolio, and old posts so the recruiter sees one coherent story after opening the resume."
       />
+      <PrototypeNotice detail="Social profile polish is parked until the JD-tailoring loop is production-ready." />
       <Segmented<SocialTab>
         label="Surface"
         value={tab}
@@ -1414,6 +1405,7 @@ function InterviewPage({
         title="Likely questions from the JD."
         body="Question, why it will come up, and the hook back to your resume."
       />
+      <PrototypeNotice detail="Interview prep questions are sample content until generated from the current JD." />
       <Segmented<InterviewTab>
         label="Category"
         value={tab}
@@ -1452,6 +1444,7 @@ function SelfHostPage() {
         title="Your resume is a file."
         body="JSON Resume underneath, a static web app on Pages, and a clear path to CLI, Docker, and plugin SDK."
       />
+      <PrototypeNotice detail="Docker, CLI, GitHub Action, and plugin SDK cards are roadmap placeholders." />
       <section className="dev-grid">
         <article className="code-card wide">
           <span>resume.json</span>
@@ -1499,6 +1492,15 @@ function PageHeader({
       </div>
       {action}
     </header>
+  );
+}
+
+function PrototypeNotice({ detail }: { detail: string }) {
+  return (
+    <div className="prototype-notice" role="note">
+      <strong>Prototype surface</strong>
+      <span>{detail}</span>
+    </div>
   );
 }
 
