@@ -32,6 +32,8 @@ Schema reference: [ACCEPTED_RECEIPTS.example.json](ACCEPTED_RECEIPTS.example.jso
 
 Collection instructions: [COLLECTION.md](COLLECTION.md).
 
+Campaign pack: [CAMPAIGN.md](CAMPAIGN.md).
+
 Waiver format: [VALIDATION_WAIVER.example.md](VALIDATION_WAIVER.example.md).
 
 The project is not complete until the owner accepts enough real receipts to satisfy `VALIDATION.md`, or explicitly waives that evidence gate.

@@ -27,6 +27,8 @@ Put exported receipts in `receipts/` at the repository root. Receipt JSON files 
 
 Use [receipts/COLLECTION.md](receipts/COLLECTION.md) as the tester handoff and owner intake runbook.
 
+Use [receipts/CAMPAIGN.md](receipts/CAMPAIGN.md) for the copy-paste tester invite, outcome follow-up, owner checklist, and private tracker format.
+
 Audit the receipt folder locally:
 
 ```bash

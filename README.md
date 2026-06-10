@@ -6,6 +6,8 @@ Current production status: [PRODUCTION_STATUS.md](PRODUCTION_STATUS.md).
 
 Real-user validation protocol: [VALIDATION.md](VALIDATION.md).
 
+Validation campaign pack: [receipts/CAMPAIGN.md](receipts/CAMPAIGN.md).
+
 ## App
 
 ```bash

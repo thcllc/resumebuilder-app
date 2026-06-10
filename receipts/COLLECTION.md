@@ -2,6 +2,8 @@
 
 Use this runbook when collecting real-user validation evidence. Do not commit tester receipt JSON files.
 
+Use [CAMPAIGN.md](CAMPAIGN.md) for copy-paste tester invite text, outcome follow-up text, and a private tracker format.
+
 ## Tester Handoff
 
 Send each tester these instructions:
