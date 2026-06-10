@@ -1646,6 +1646,24 @@ button {
   margin-top: 12px;
 }
 
+.attestation-check {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.attestation-check input {
+  margin-top: 1px;
+}
+
 .receipt-note {
   border-top: 1px solid var(--line);
   margin-top: 16px;

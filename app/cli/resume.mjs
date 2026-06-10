@@ -256,6 +256,12 @@ const validateReceiptShape = (receipt) => {
     errors.push("tester.label is required");
   }
 
+  if (!isObject(receipt.attestations)) {
+    errors.push("attestations are required");
+  } else if (typeof receipt.attestations.noOperatorAssistance !== "boolean") {
+    errors.push("attestations.noOperatorAssistance must be boolean");
+  }
+
   if (!isObject(receipt.completion)) errors.push("completion is required");
   else {
     if (typeof receipt.completion.coreFlowComplete !== "boolean") {
@@ -277,6 +283,9 @@ const validateReceiptShape = (receipt) => {
         (receipt.completion.requiredPassed === receipt.completion.requiredTotal)
     ) {
       errors.push("completion.coreFlowComplete must match requiredPassed/requiredTotal");
+    }
+    if (receipt.completion.coreFlowComplete === true && receipt.attestations?.noOperatorAssistance !== true) {
+      errors.push("coreFlowComplete requires no operator assistance attestation");
     }
   }
 
@@ -358,11 +367,16 @@ const auditValidationReceipts = async (flags) => {
     const tester = receipt?.tester?.label?.trim() ?? "";
     const testerKey = tester.toLowerCase();
     const coreFlowComplete = receipt?.completion?.coreFlowComplete === true;
+    const noOperatorAssistance = receipt?.attestations?.noOperatorAssistance === true;
     const interviewOutcome =
       receipt?.outcome?.status === "interview" || receipt?.outcome?.status === "offer";
     const hasOutcomeNotes = Boolean(receipt?.outcome?.notes?.trim());
     const countableCompletion =
-      errors.length === 0 && coreFlowComplete && testerKey && testerKey !== "anonymous tester";
+      errors.length === 0 &&
+      coreFlowComplete &&
+      noOperatorAssistance &&
+      testerKey &&
+      testerKey !== "anonymous tester";
     const countableInterview = countableCompletion && interviewOutcome && hasOutcomeNotes;
 
     records.push({
@@ -371,6 +385,7 @@ const auditValidationReceipts = async (flags) => {
       tester: tester || "missing",
       createdAt: receipt?.createdAt ?? "",
       coreFlowComplete,
+      noOperatorAssistance,
       outcome: receipt?.outcome?.status ?? "missing",
       hasOutcomeNotes,
       countableCompletion,
@@ -391,6 +406,7 @@ const auditValidationReceipts = async (flags) => {
     record.countableCompletion =
       record.errors.length === 0 &&
       record.coreFlowComplete &&
+      record.noOperatorAssistance &&
       testerKey &&
       testerKey !== "anonymous tester";
     record.countableInterview =

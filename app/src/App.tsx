@@ -223,6 +223,10 @@ const parseValidationState = (input: unknown): ValidationState => {
     runId: typeof value.runId === "string" ? value.runId : fallback.runId,
     startedAt: typeof value.startedAt === "string" ? value.startedAt : fallback.startedAt,
     testerLabel: typeof value.testerLabel === "string" ? value.testerLabel : fallback.testerLabel,
+    noOperatorAssistance:
+      typeof value.noOperatorAssistance === "boolean"
+        ? value.noOperatorAssistance
+        : fallback.noOperatorAssistance,
     outcome: isValidationOutcome(value.outcome) ? value.outcome : fallback.outcome,
     notes: typeof value.notes === "string" ? value.notes : fallback.notes,
     reviewedDiffAt: typeof value.reviewedDiffAt === "string" ? value.reviewedDiffAt : undefined,
@@ -2097,6 +2101,19 @@ function ValidationPage({
               value={validationState.testerLabel}
               onChange={(testerLabel) => updateValidationState({ testerLabel })}
             />
+            <label className="attestation-check">
+              <input
+                aria-label="No operator assistance"
+                type="checkbox"
+                checked={validationState.noOperatorAssistance}
+                onChange={(event) =>
+                  updateValidationState({ noOperatorAssistance: event.target.checked })
+                }
+              />
+              <span>
+                I completed this validation run without operator assistance.
+              </span>
+            </label>
             <label className="field">
               <span>Outcome</span>
               <select

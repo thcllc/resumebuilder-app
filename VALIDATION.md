@@ -16,6 +16,7 @@ A tester counts only when all of these are true:
 - The tester accepts the tailored draft.
 - The tester exports JSON Resume.
 - The tester exports PDF.
+- The tester attests that the run was completed without operator assistance.
 - The tester exports a validation receipt from the Validate page.
 - The tester completed the flow without operator assistance.
 
@@ -60,6 +61,8 @@ Validation receipts are local JSON files exported by the tester. They include a 
 Receipts do not include the full resume body or pasted job description body.
 
 The CLI auditor rejects receipts when the integrity digest does not match the receipt body, when a receipt id is duplicated, or when required fields contradict each other.
+
+The CLI auditor counts a completion receipt only when `attestations.noOperatorAssistance` is `true`.
 
 ## Audit Output
 

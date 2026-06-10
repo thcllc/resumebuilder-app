@@ -12,7 +12,7 @@ Send each tester these instructions:
 4. Paste a real job description.
 5. Review the computed diff and accept the tailored draft.
 6. Export JSON and PDF.
-7. Return to Validate, enter a non-anonymous tester label, choose the outcome, add notes if a real interview or offer happened, and click `Export receipt`.
+7. Return to Validate, enter a non-anonymous tester label, check the no-assistance attestation if true, choose the outcome, add notes if a real interview or offer happened, and click `Export receipt`.
 8. Send only the exported `rbv-*.json` receipt unless you explicitly consent to sharing the resume or job description.
 
 ## Owner Intake
@@ -35,7 +35,7 @@ node app/cli/resume.mjs validate --input receipts --json
 
 ## Acceptance Rules
 
-Accept a completion receipt only when the CLI reports it as valid, `completion.coreFlowComplete` is `true`, and the tester completed the flow without operator assistance.
+Accept a completion receipt only when the CLI reports it as valid, `completion.coreFlowComplete` is `true`, `attestations.noOperatorAssistance` is `true`, and the tester completed the flow without operator assistance.
 
 Accept an interview-producing receipt only when the completion receipt is valid, `outcome.status` is `interview` or `offer`, and `outcome.notes` states the real follow-up evidence.
 

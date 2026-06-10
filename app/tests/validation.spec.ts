@@ -24,6 +24,7 @@ test.describe("validation receipts", () => {
       runId: "run-11111111",
       startedAt: "2026-06-10T09:59:00.000Z",
       testerLabel: "tester-01",
+      noOperatorAssistance: true,
       outcome: "interview" as const,
       notes: "Recruiter screen booked after sending the tailored PDF.",
       reviewedDiffAt: "2026-06-10T10:00:00.000Z",
@@ -67,6 +68,7 @@ test.describe("validation receipts", () => {
     });
     expect(receipt.completion.coreFlowComplete).toBe(true);
     expect(receipt.completion.interviewOutcomeRecorded).toBe(true);
+    expect(receipt.attestations.noOperatorAssistance).toBe(true);
     expect(receipt.integrity).toMatchObject({
       algorithm: "fnv1a-stable-v1",
       digest: expect.stringMatching(/^[a-f0-9]{8}$/),

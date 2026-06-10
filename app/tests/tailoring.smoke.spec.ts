@@ -121,6 +121,8 @@ What you will do
   await expect(page.getByText("Core flow")).toBeVisible();
   await expect(page.getByText("Owner intake command")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
+  await expect(page.getByText("Complete", { exact: true })).toHaveCount(0);
+  await page.getByLabel("No operator assistance").check();
   await expect(page.getByText("Complete", { exact: true })).toBeVisible();
   await page.getByLabel("Tester label").fill("tester-01");
   await page.getByLabel("Outcome", { exact: true }).selectOption("interview");
@@ -137,6 +139,7 @@ What you will do
     schema: string;
     run: { id: string; startedAt: string };
     completion: { coreFlowComplete: boolean; interviewOutcomeRecorded: boolean };
+    attestations: { noOperatorAssistance: boolean };
     privacy: { containsResumeBody: boolean; containsJobDescriptionBody: boolean };
     integrity: { algorithm: string; digest: string };
   };
@@ -145,6 +148,7 @@ What you will do
   expect(Date.parse(receipt.run.startedAt)).not.toBeNaN();
   expect(receipt.completion.coreFlowComplete).toBe(true);
   expect(receipt.completion.interviewOutcomeRecorded).toBe(true);
+  expect(receipt.attestations.noOperatorAssistance).toBe(true);
   expect(receipt.privacy.containsResumeBody).toBe(false);
   expect(receipt.privacy.containsJobDescriptionBody).toBe(false);
   expect(receipt.integrity).toMatchObject({

@@ -20,11 +20,13 @@ What you will do
 
 const validationReceiptFor = ({
   testerLabel,
+  noOperatorAssistance = true,
   outcome,
   notes,
   createdAt,
 }: {
   testerLabel: string;
+  noOperatorAssistance?: boolean;
   outcome: "sent" | "interview" | "offer";
   notes: string;
   createdAt: string;
@@ -48,6 +50,7 @@ const validationReceiptFor = ({
       runId: `run-${testerLabel.replace(/\D/g, "").padStart(8, "0").slice(-8)}`,
       startedAt: "2026-06-10T09:59:00.000Z",
       testerLabel,
+      noOperatorAssistance,
       outcome,
       notes,
       reviewedDiffAt: "2026-06-10T10:00:00.000Z",
@@ -178,6 +181,53 @@ test.describe("resume CLI", () => {
       const report = JSON.parse(failure.stdout ?? "{}");
       expect(report.gates.all).toBe(false);
       expect(report.receipts[0].errors).toContain("integrity.digest mismatch");
+      expect(report.totals.uniqueCompletionUsers).toBe(0);
+    }
+  });
+
+  test("does not count receipts without no-assistance attestation", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-validation-assisted-"));
+    await writeFile(
+      join(workspace, "tester-01.json"),
+      JSON.stringify(
+        validationReceiptFor({
+          testerLabel: "tester-01",
+          noOperatorAssistance: false,
+          outcome: "interview",
+          notes: "Recruiter screen booked after sending the tailored PDF.",
+          createdAt: "2026-06-10T10:04:00.000Z",
+        }),
+        null,
+        2,
+      ),
+    );
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "validate",
+          "--input",
+          workspace,
+          "--json",
+          "--require-completions",
+          "1",
+          "--require-interviews",
+          "1",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected assisted validation audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.receipts[0]).toMatchObject({
+        noOperatorAssistance: false,
+        countableCompletion: false,
+        countableInterview: false,
+      });
       expect(report.totals.uniqueCompletionUsers).toBe(0);
     }
   });

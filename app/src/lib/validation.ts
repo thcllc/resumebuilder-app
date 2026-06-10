@@ -13,6 +13,7 @@ export type ValidationState = {
   runId: string;
   startedAt: string;
   testerLabel: string;
+  noOperatorAssistance: boolean;
   outcome: ValidationOutcome;
   notes: string;
   reviewedDiffAt?: string;
@@ -53,6 +54,9 @@ export type ValidationReceipt = {
   };
   tester: {
     label: string;
+  };
+  attestations: {
+    noOperatorAssistance: boolean;
   };
   target: {
     title: string;
@@ -122,6 +126,7 @@ export const createValidationState = (): ValidationState => ({
   runId: validationRunId(),
   startedAt: new Date().toISOString(),
   testerLabel: "",
+  noOperatorAssistance: false,
   outcome: "not-sent",
   notes: "",
 });
@@ -179,6 +184,14 @@ export const buildValidationChecklist = (input: ValidationInput): ValidationCrit
       evidence: state.acceptedDraftAt
         ? `${versions.length} saved forks; accepted ${state.acceptedDraftAt}`
         : `${versions.length} saved forks`,
+    },
+    {
+      id: "no-operator-assistance",
+      label: "Tester attested no operator assistance",
+      pass: state.noOperatorAssistance,
+      evidence: state.noOperatorAssistance
+        ? "Tester marked the flow as completed without operator assistance"
+        : "Tester has not attested independent completion",
     },
     {
       id: "json-exported",
@@ -248,6 +261,7 @@ export const buildValidationReceipt = ({
       fingerprints,
       outcome: state.outcome,
       testerLabel: state.testerLabel,
+      noOperatorAssistance: state.noOperatorAssistance,
     }),
   )}`;
 
@@ -268,6 +282,9 @@ export const buildValidationReceipt = ({
     },
     tester: {
       label: state.testerLabel.trim() || "anonymous tester",
+    },
+    attestations: {
+      noOperatorAssistance: state.noOperatorAssistance,
     },
     target: {
       title: analysis.job.title,
