@@ -2,6 +2,8 @@
 
 Local-first resume and job-application workspace.
 
+Current production status: [PRODUCTION_STATUS.md](PRODUCTION_STATUS.md).
+
 ## App
 
 ```bash
@@ -68,4 +70,8 @@ export const plain = defineTemplate({
 
 GitHub Actions workflow: `.github/workflows/ci.yml`.
 
-Current required checks are typecheck, Playwright smoke tests, and production build.
+Current required checks are typecheck, Playwright smoke tests, production build, and Docker image build.
+
+## License
+
+MIT.

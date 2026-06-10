@@ -2,6 +2,16 @@
 
 Open this file before changing code.
 
+## Current Status Update: 2026-06-10
+
+The findings below were the original intelligence pass, not the current implementation state.
+
+Current production status lives in `PRODUCTION_STATUS.md`.
+
+The core fake/static findings below have been remediated in `app/`: tailoring, diff, ATS scoring, versions, PDF export, cover letter, outreach, social, interview, self-host, CLI, plugin SDK, and CI now have executable implementations and tests.
+
+Do not use the "Current Reality" section below as current truth without first checking `PRODUCTION_STATUS.md` and the current source tree.
+
 ## Most Surprising Discovery
 
 The product’s most valuable next milestone excludes most of the product the prototype already shows.
