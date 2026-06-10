@@ -46,7 +46,7 @@ node cli/resume.mjs export --input resume.json --out exports --json --pdf
 Audit exported validation receipts:
 
 ```bash
-node cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
+node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
 ```
 
 ## Docker
@@ -82,7 +82,7 @@ Current required checks are typecheck, Playwright smoke tests, production build,
 
 ## Validation
 
-The app has a local Validate page that exports `rbv-*.json` receipts after a tester completes the core resume/JD/diff/export loop. Receipts are tester-controlled, include a run id plus integrity digest, and do not include the full resume body or pasted job description body. Use `node cli/resume.mjs validate --input receipts --json` to audit a receipt cohort.
+The app has a local Validate page that exports `rbv-*.json` receipts after a tester completes the core resume/JD/diff/export loop. Receipts are tester-controlled, include a run id plus integrity digest, and do not include the full resume body or pasted job description body. Put receipts in [receipts](receipts) and run `node app/cli/resume.mjs validate --input receipts --json` to audit a cohort.
 
 ## License
 

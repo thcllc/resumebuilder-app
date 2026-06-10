@@ -21,11 +21,12 @@ A tester counts only when all of these are true:
 
 Collect five exported `rbv-*.json` receipts where `completion.coreFlowComplete` is `true`.
 
-Audit a receipt folder locally:
+Put exported receipts in `receipts/` at the repository root. Receipt JSON files are ignored by Git in that folder.
+
+Audit the receipt folder locally:
 
 ```bash
-cd app
-node cli/resume.mjs validate --input ../receipts --require-completions 5 --require-interviews 0
+node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 0
 ```
 
 The five-user gate passes only when the audit reports at least five unique non-anonymous tester labels with complete receipts.
@@ -45,8 +46,7 @@ Do not count `sent`, `no-response`, `rejected`, or `not-sent` as interview-produ
 The original project kill criterion requires at least ten interview-producing resumes per week by 2026-08-31. Audit that with:
 
 ```bash
-cd app
-node cli/resume.mjs validate --input ../receipts --require-completions 5 --require-interviews 10 --window-days 7
+node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
 ```
 
 The audit command exits non-zero until both gates pass and every receipt is structurally valid.
@@ -64,8 +64,7 @@ The CLI auditor rejects receipts when the integrity digest does not match the re
 Use `--json` to produce machine-readable audit output:
 
 ```bash
-cd app
-node cli/resume.mjs validate --input ../receipts --json
+node app/cli/resume.mjs validate --input receipts --json
 ```
 
 The audit reports:

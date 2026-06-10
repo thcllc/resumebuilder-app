@@ -112,6 +112,7 @@ What you will do
   await page.getByLabel("Primary").getByRole("button", { name: "Self-host" }).click();
   await expect(page.getByText("docker build -t resumebuilderapp")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs export")).toBeVisible();
+  await expect(page.getByText("node cli/resume.mjs validate")).toBeVisible();
   await expect(page.getByText("roadmap placeholders")).toHaveCount(0);
 
   await page.getByLabel("Primary").getByRole("button", { name: "Validate" }).click();

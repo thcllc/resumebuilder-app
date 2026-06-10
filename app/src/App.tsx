@@ -2162,7 +2162,7 @@ function SelfHostPage() {
       <PageHeader
         kicker="Open and portable"
         title="Your resume is a file."
-        body="JSON Resume underneath, a static web app on Pages, a Docker image, a local CLI, CI, and a typed template plugin contract."
+        body="JSON Resume underneath, a static web app on Pages, a Docker image, a local CLI, validation receipt audits, CI, and a typed template plugin contract."
       />
       <section className="dev-grid">
         <article className="code-card wide">
@@ -2184,6 +2184,7 @@ function SelfHostPage() {
         </article>
         <DevCard title="Docker" command="docker build -t resumebuilderapp . && docker run --rm -p 3210:80 resumebuilderapp" />
         <DevCard title="CLI" command="node cli/resume.mjs export --input resume.json --out exports --json --pdf" />
+        <DevCard title="Validation audit" command="node cli/resume.mjs validate --input ../receipts --require-completions 5 --require-interviews 10 --window-days 7" />
         <DevCard title="GitHub Action" command="pnpm typecheck && pnpm test:smoke && pnpm build" />
         <DevCard title="Plugin SDK" command="defineTemplate({ id: 'plain', name: 'Plain', description: 'Text', render })" />
       </section>

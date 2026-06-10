@@ -27,7 +27,7 @@ The root JSX files are retained only as historical design reference. Do not trea
 - Social: generated local audit for LinkedIn, GitHub, portfolio, and old public-post cleanup.
 - Interview: generated local interview prep from the current resume and JD.
 - Validate: local tester-controlled validation runs with integrity-checked receipts for five-user completion and interview-producing outcome evidence.
-- Self-host: documented Cloudflare Pages, Docker, local CLI, validation receipt audit, CI, and plugin SDK paths.
+- Self-host: documented Cloudflare Pages, Docker, local CLI, validation receipt audit, local receipt collection, CI, and plugin SDK paths.
 
 ## Verification
 
@@ -78,7 +78,7 @@ Current smoke suite covers:
 
 - Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27269505902`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
-- The Validate page, `node cli/resume.mjs validate`, and [VALIDATION.md](VALIDATION.md) now define the fresh-run workflow, receipt format, integrity checks, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
+- The Validate page, `node app/cli/resume.mjs validate`, [receipts](receipts), and [VALIDATION.md](VALIDATION.md) now define the fresh-run workflow, receipt format, integrity checks, local receipt collection, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
 
 ## Release Gate
 
