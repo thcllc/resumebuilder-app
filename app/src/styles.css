@@ -402,6 +402,7 @@ button {
 }
 
 .field input,
+.field select,
 .textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -413,9 +414,14 @@ button {
 }
 
 .field input:focus,
+.field select:focus,
 .textarea:focus {
   border-color: var(--ink-2);
   box-shadow: 0 0 0 3px rgba(24, 20, 15, 0.08);
+}
+
+.field select {
+  appearance: none;
 }
 
 .textarea {
@@ -1563,6 +1569,89 @@ button {
   font-size: 19px;
 }
 
+.validation-grid {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.validation-status,
+.validation-panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.validation-status {
+  padding: 18px;
+}
+
+.validation-status strong {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.validation-status p,
+.receipt-note p,
+.validation-protocol p {
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.validation-status.pass {
+  border-color: rgba(50, 132, 90, 0.45);
+  background: #f1f8f3;
+}
+
+.validation-status.missing {
+  border-color: rgba(189, 86, 53, 0.38);
+  background: #fff8f4;
+}
+
+.validation-status.watch {
+  border-color: rgba(167, 106, 25, 0.38);
+  background: #fffaf0;
+}
+
+.validation-layout {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+}
+
+.validation-panel {
+  padding: 16px;
+}
+
+.validation-checklist,
+.validation-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.receipt-note {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.validation-protocol {
+  max-width: 1180px;
+  margin: 16px auto 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .dev-grid {
   max-width: 1180px;
   margin: 0 auto;
@@ -1690,7 +1779,10 @@ button {
   .diff-grid,
   .dev-grid,
   .social-layout,
-  .post-audit {
+  .post-audit,
+  .validation-grid,
+  .validation-layout,
+  .validation-protocol {
     display: block;
   }
 
@@ -1740,7 +1832,10 @@ button {
   .profile-preview-card,
   .social-panel,
   .cleanup-summary,
-  .post-table {
+  .post-table,
+  .validation-status,
+  .validation-panel,
+  .validation-protocol .code-card {
     margin-top: 14px;
   }
 

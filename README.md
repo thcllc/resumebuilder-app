@@ -4,6 +4,8 @@ Local-first resume and job-application workspace.
 
 Current production status: [PRODUCTION_STATUS.md](PRODUCTION_STATUS.md).
 
+Real-user validation protocol: [VALIDATION.md](VALIDATION.md).
+
 ## App
 
 ```bash
@@ -71,6 +73,10 @@ export const plain = defineTemplate({
 GitHub Actions workflow: `.github/workflows/ci.yml`.
 
 Current required checks are typecheck, Playwright smoke tests, production build, and Docker image build.
+
+## Validation
+
+The app has a local Validate page that exports `rbv-*.json` receipts after a tester completes the core resume/JD/diff/export loop. Receipts are tester-controlled and do not include the full resume body or pasted job description body.
 
 ## License
 

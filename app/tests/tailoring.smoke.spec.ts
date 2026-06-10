@@ -113,4 +113,30 @@ What you will do
   await expect(page.getByText("docker build -t resumebuilderapp")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs export")).toBeVisible();
   await expect(page.getByText("roadmap placeholders")).toHaveCount(0);
+
+  await page.getByLabel("Primary").getByRole("button", { name: "Validate" }).click();
+  await expect(page.getByRole("heading", { name: "Export evidence the core loop worked." })).toBeVisible();
+  await expect(page.getByText("Core flow")).toBeVisible();
+  await expect(page.getByText("Complete", { exact: true })).toBeVisible();
+  await page.getByLabel("Tester label").fill("tester-01");
+  await page.getByLabel("Outcome", { exact: true }).selectOption("interview");
+  await page.getByLabel("Outcome notes").fill("Recruiter screen booked after sending the tailored PDF.");
+
+  const receiptPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export receipt" }).click();
+  const receiptDownload = await receiptPromise;
+  expect(receiptDownload.suggestedFilename()).toMatch(/^rbv-[a-f0-9]{8}\.json$/);
+
+  const receiptPath = await receiptDownload.path();
+  if (!receiptPath) throw new Error("Expected validation receipt to produce a readable download.");
+  const receipt = JSON.parse(await readFile(receiptPath, "utf8")) as {
+    schema: string;
+    completion: { coreFlowComplete: boolean; interviewOutcomeRecorded: boolean };
+    privacy: { containsResumeBody: boolean; containsJobDescriptionBody: boolean };
+  };
+  expect(receipt.schema).toBe("resumebuilder.validation.v1");
+  expect(receipt.completion.coreFlowComplete).toBe(true);
+  expect(receipt.completion.interviewOutcomeRecorded).toBe(true);
+  expect(receipt.privacy.containsResumeBody).toBe(false);
+  expect(receipt.privacy.containsJobDescriptionBody).toBe(false);
 });

@@ -24,6 +24,7 @@ The root JSX files are retained only as historical design reference. Do not trea
 - Outreach: generated locally from the current resume and JD with clipboard copy.
 - Social: generated local audit for LinkedIn, GitHub, portfolio, and old public-post cleanup.
 - Interview: generated local interview prep from the current resume and JD.
+- Validate: local tester-controlled receipts for five-user completion and interview-producing outcome evidence.
 - Self-host: documented Cloudflare Pages, Docker, local CLI, CI, and plugin SDK paths.
 
 ## Verification
@@ -64,12 +65,14 @@ Current smoke suite covers:
 - Deterministic PDF generation.
 - CLI scoring and JSON/PDF export.
 - Template plugin SDK.
-- Full browser path from edit through JD tailoring, diff accept, versions, JSON/PDF export, letter, outreach, interview, social, and self-host surfaces.
+- Validation receipt generation without embedding full resume or JD bodies.
+- Full browser path from edit through JD tailoring, diff accept, versions, JSON/PDF export, letter, outreach, interview, social, validation receipt export, and self-host surfaces.
 
 ## Known External Verification Gaps
 
 - Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27267849706`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
+- The Validate page and [VALIDATION.md](VALIDATION.md) now define the receipt format and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
 
 ## Release Gate
 
@@ -80,4 +83,4 @@ Do not call the project complete unless all of these are true:
 - Live custom-domain smoke tests pass against `https://resumebuilder.app`.
 - Docker build is verified either locally or by GitHub Actions.
 - A remote repository exists and CI is green.
-- The owner has accepted external user-validation evidence or explicitly waived it.
+- The owner has accepted enough external validation receipts to satisfy [VALIDATION.md](VALIDATION.md), or explicitly waived that evidence gate.

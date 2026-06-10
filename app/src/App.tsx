@@ -34,6 +34,15 @@ import {
 } from "./lib/resume";
 import { analyzeTailoring, type TailoringAnalysis } from "./lib/tailoring";
 import { createResumePdfBlob } from "./lib/pdf";
+import {
+  buildValidationChecklist,
+  buildValidationReceipt,
+  createValidationState,
+  isInterviewOutcome,
+  validationOutcomes,
+  type ValidationOutcome,
+  type ValidationState,
+} from "./lib/validation";
 
 type Template =
   | "kraft"
@@ -56,6 +65,7 @@ type Page =
   | "outreach"
   | "social"
   | "interview"
+  | "validate"
   | "selfhost";
 
 type Tone = "warm" | "direct" | "formal" | "punchy";
@@ -96,6 +106,7 @@ type PostAuditRow = {
 
 const STORAGE_KEY = "resume-builder-workspace-v2";
 const VERSIONS_STORAGE_KEY = "resume-builder-versions-v1";
+const VALIDATION_STORAGE_KEY = "resume-builder-validation-v1";
 const applicationStatuses: ApplicationStatus[] = ["draft", "applied", "interview", "offer", "rejected"];
 
 const pages: Array<{ id: Page; label: string; icon: typeof Home }> = [
@@ -109,6 +120,7 @@ const pages: Array<{ id: Page; label: string; icon: typeof Home }> = [
   { id: "outreach", label: "Outreach", icon: MessageSquare },
   { id: "social", label: "Social", icon: UserRound },
   { id: "interview", label: "Interview", icon: Mic },
+  { id: "validate", label: "Validate", icon: ShieldCheck },
   { id: "selfhost", label: "Self-host", icon: Code2 },
 ];
 
@@ -196,6 +208,36 @@ const loadVersions = (): ApplicationVersion[] => {
     return parseVersions(JSON.parse(stored));
   } catch {
     return [];
+  }
+};
+
+const isValidationOutcome = (value: unknown): value is ValidationOutcome =>
+  typeof value === "string" && validationOutcomes.some(([outcome]) => outcome === value);
+
+const parseValidationState = (input: unknown): ValidationState => {
+  const fallback = createValidationState();
+  if (!input || typeof input !== "object") return fallback;
+
+  const value = input as Record<string, unknown>;
+  return {
+    testerLabel: typeof value.testerLabel === "string" ? value.testerLabel : fallback.testerLabel,
+    outcome: isValidationOutcome(value.outcome) ? value.outcome : fallback.outcome,
+    notes: typeof value.notes === "string" ? value.notes : fallback.notes,
+    reviewedDiffAt: typeof value.reviewedDiffAt === "string" ? value.reviewedDiffAt : undefined,
+    acceptedDraftAt: typeof value.acceptedDraftAt === "string" ? value.acceptedDraftAt : undefined,
+    exportedJsonAt: typeof value.exportedJsonAt === "string" ? value.exportedJsonAt : undefined,
+    exportedPdfAt: typeof value.exportedPdfAt === "string" ? value.exportedPdfAt : undefined,
+  };
+};
+
+const loadValidationState = (): ValidationState => {
+  const stored = localStorage.getItem(VALIDATION_STORAGE_KEY);
+  if (!stored) return createValidationState();
+
+  try {
+    return parseValidationState(JSON.parse(stored));
+  } catch {
+    return createValidationState();
   }
 };
 
@@ -691,6 +733,7 @@ export function App() {
   const [page, setPage] = useState<Page>(initialPage);
   const [resume, setResume] = useState<ResumeData>(loadResume);
   const [versions, setVersions] = useState<ApplicationVersion[]>(loadVersions);
+  const [validationState, setValidationState] = useState<ValidationState>(loadValidationState);
   const [activeVersionId, setActiveVersionId] = useState("");
   const [template, setTemplate] = useState<Template>("kraft");
   const [activeWorkId, setActiveWorkId] = useState(resume.work[0]?.id ?? "");
@@ -713,6 +756,10 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(VERSIONS_STORAGE_KEY, JSON.stringify(versions));
   }, [versions]);
+
+  useEffect(() => {
+    localStorage.setItem(VALIDATION_STORAGE_KEY, JSON.stringify(validationState));
+  }, [validationState]);
 
   useEffect(() => {
     if (!activeVersionId) return;
@@ -739,6 +786,16 @@ export function App() {
   const go = (next: Page) => {
     window.location.hash = next;
     setPage(next);
+  };
+
+  const updateValidationState = (patch: Partial<ValidationState>) => {
+    setValidationState((current) => ({ ...current, ...patch }));
+  };
+
+  const stampValidationEvent = (
+    key: "reviewedDiffAt" | "acceptedDraftAt" | "exportedJsonAt" | "exportedPdfAt",
+  ) => {
+    updateValidationState({ [key]: new Date().toISOString() });
   };
 
   const updateBasics = (key: keyof ResumeData["basics"], value: string) => {
@@ -854,14 +911,17 @@ export function App() {
   };
 
   const exportJson = () => {
+    stampValidationEvent("exportedJsonAt");
     downloadFile("resume.json", "application/json", JSON.stringify(toJsonResume(resume), null, 2));
   };
 
   const exportPdf = () => {
+    stampValidationEvent("exportedPdfAt");
     downloadBlob(`${fileSafeName(resume.basics.name)}.pdf`, createResumePdfBlob(resume));
   };
 
   const reviewTailoredDraft = () => {
+    stampValidationEvent("reviewedDiffAt");
     go("diff");
   };
 
@@ -897,7 +957,23 @@ export function App() {
     setActiveVersionId(nextVersionId);
     setResume(nextVersion.resume);
     setActiveWorkId(nextVersion.resume.work[0]?.id ?? "");
+    stampValidationEvent("acceptedDraftAt");
     go("editor");
+  };
+
+  const exportValidationReceipt = () => {
+    const receipt = buildValidationReceipt({
+      resume,
+      jd,
+      analysis: tailoringAnalysis,
+      versions,
+      state: validationState,
+    });
+    downloadFile(
+      `${receipt.receiptId}.json`,
+      "application/json",
+      JSON.stringify(receipt, null, 2),
+    );
   };
 
   const openVersion = (versionId: string) => {
@@ -1057,6 +1133,17 @@ export function App() {
           analysis={tailoringAnalysis}
           tab={interviewTab}
           setTab={setInterviewTab}
+        />
+      )}
+      {page === "validate" && (
+        <ValidationPage
+          resume={resume}
+          jd={jd}
+          analysis={tailoringAnalysis}
+          versions={versions}
+          validationState={validationState}
+          updateValidationState={updateValidationState}
+          exportValidationReceipt={exportValidationReceipt}
         />
       )}
       {page === "selfhost" && <SelfHostPage />}
@@ -1886,6 +1973,165 @@ function InterviewPage({
             </div>
           </article>
         ))}
+      </section>
+    </main>
+  );
+}
+
+function ValidationPage({
+  resume,
+  jd,
+  analysis,
+  versions,
+  validationState,
+  updateValidationState,
+  exportValidationReceipt,
+}: {
+  resume: ResumeData;
+  jd: string;
+  analysis: TailoringAnalysis;
+  versions: ApplicationVersion[];
+  validationState: ValidationState;
+  updateValidationState: (patch: Partial<ValidationState>) => void;
+  exportValidationReceipt: () => void;
+}) {
+  const criteria = buildValidationChecklist({
+    resume,
+    jd,
+    analysis,
+    versions,
+    state: validationState,
+  });
+  const passed = criteria.filter((criterion) => criterion.pass).length;
+  const coreFlowComplete = passed === criteria.length;
+  const outcomeRecorded = isInterviewOutcome(validationState.outcome);
+  const cohortLine = coreFlowComplete
+    ? "This tester can count toward the five-user completion gate after the receipt is exported."
+    : "Finish every checklist item before counting this tester toward the five-user gate.";
+  const role = analysis.job.company === "Unknown company"
+    ? analysis.job.title
+    : `${analysis.job.company} - ${analysis.job.title}`;
+
+  return (
+    <main className="content-page">
+      <PageHeader
+        kicker="Validation"
+        title="Export evidence the core loop worked."
+        body="No analytics, accounts, or cloud sync. A tester controls the receipt and can hand it to the project owner as proof of the local workflow."
+        action={
+          <button className="button primary" onClick={exportValidationReceipt}>
+            <Download size={16} />
+            Export receipt
+          </button>
+        }
+      />
+
+      <section className="validation-grid">
+        <article className={`validation-status ${coreFlowComplete ? "pass" : "missing"}`}>
+          <div className="score-label">Core flow</div>
+          <strong>{coreFlowComplete ? "Complete" : `${passed}/${criteria.length}`}</strong>
+          <p>{cohortLine}</p>
+        </article>
+
+        <article className={`validation-status ${outcomeRecorded ? "pass" : "watch"}`}>
+          <div className="score-label">Interview outcome</div>
+          <strong>{outcomeRecorded ? "Recorded" : "Pending"}</strong>
+          <p>
+            The August gate needs interview-producing resumes. Mark Interview or Offer only after
+            a real response.
+          </p>
+        </article>
+
+        <article className="validation-status">
+          <div className="score-label">Target</div>
+          <strong>{analysis.score.tailored}</strong>
+          <p>
+            {role} match score after {analysis.patches.length} patch-shaped edits and{" "}
+            {analysis.keywords.length} keyword checks.
+          </p>
+        </article>
+      </section>
+
+      <section className="validation-layout">
+        <section className="validation-panel">
+          <div className="eyebrow">Required receipt criteria</div>
+          <div className="validation-checklist">
+            {criteria.map((criterion) => (
+              <article
+                className={`social-check ${criterion.pass ? "done" : "fix"}`}
+                key={criterion.id}
+              >
+                <div>
+                  <strong>{criterion.label}</strong>
+                  <p>{criterion.evidence}</p>
+                </div>
+                <span>{criterion.pass ? "pass" : "missing"}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <aside className="validation-panel">
+          <div className="eyebrow">Tester receipt fields</div>
+          <div className="validation-form">
+            <Field
+              label="Tester label"
+              value={validationState.testerLabel}
+              onChange={(testerLabel) => updateValidationState({ testerLabel })}
+            />
+            <label className="field">
+              <span>Outcome</span>
+              <select
+                aria-label="Outcome"
+                value={validationState.outcome}
+                onChange={(event) =>
+                  updateValidationState({ outcome: event.target.value as ValidationOutcome })
+                }
+              >
+                {validationOutcomes.map(([id, label]) => (
+                  <option value={id} key={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Outcome notes</span>
+              <textarea
+                className="textarea compact"
+                aria-label="Outcome notes"
+                value={validationState.notes}
+                onChange={(event) => updateValidationState({ notes: event.target.value })}
+                placeholder="Example: Applied on June 12; recruiter screen booked June 18."
+              />
+            </label>
+          </div>
+
+          <div className="receipt-note">
+            <strong>Receipt privacy</strong>
+            <p>
+              The exported JSON includes timestamps, scores, fingerprints, and patch targets. It
+              does not include the full resume body or pasted job description body.
+            </p>
+          </div>
+        </aside>
+      </section>
+
+      <section className="validation-protocol">
+        <article className="code-card">
+          <span>2026-07-15 gate</span>
+          <p>
+            Collect five receipts where every required criterion passes. A receipt only counts if
+            the tester completed the flow without operator assistance.
+          </p>
+        </article>
+        <article className="code-card">
+          <span>2026-08-31 gate</span>
+          <p>
+            Update receipts after real outcomes. Count only receipts marked Interview or Offer
+            toward interview-producing-resume evidence.
+          </p>
+        </article>
       </section>
     </main>
   );
