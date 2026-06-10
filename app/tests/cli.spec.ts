@@ -7,6 +7,7 @@ import { expect, test } from "playwright/test";
 import { sampleResume, toJsonResume } from "../src/lib/resume";
 import { analyzeTailoring } from "../src/lib/tailoring";
 import { buildValidationReceipt, createValidationState } from "../src/lib/validation";
+import type { ValidationReceipt } from "../src/lib/validation";
 
 const execFileAsync = promisify(execFile);
 const jd = `Nimbus Labs - Senior Platform Product Designer
@@ -60,6 +61,35 @@ const validationReceiptFor = ({
     },
     createdAt,
   });
+};
+
+const stableStringify = (value: unknown): string => {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+    .join(",")}}`;
+};
+
+const checksum = (input: string) => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+};
+
+const resignReceipt = (receipt: ValidationReceipt): ValidationReceipt => {
+  const { integrity: _integrity, ...source } = receipt;
+  return {
+    ...source,
+    integrity: {
+      algorithm: "fnv1a-stable-v1",
+      digest: checksum(stableStringify(source)),
+    },
+  };
 };
 
 const writeAcceptedReceipts = async (
@@ -456,6 +486,96 @@ test.describe("resume CLI", () => {
       expect(report.gates.all).toBe(false);
       expect(report.receipts[0].errors).toContain("integrity.digest mismatch");
       expect(report.totals.uniqueCompletionUsers).toBe(0);
+    }
+  });
+
+  test("rejects integrity-valid receipts missing required checklist evidence", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-validation-forged-checklist-"));
+    const receipt = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "sent",
+      notes: "",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    receipt.criteria = receipt.criteria.filter((criterion) => criterion.id !== "pdf-exported");
+    receipt.completion.requiredPassed = receipt.criteria.filter((criterion) => criterion.pass).length;
+    receipt.completion.requiredTotal = receipt.criteria.length;
+    receipt.completion.coreFlowComplete = true;
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(resignReceipt(receipt), null, 2));
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "validate",
+          "--input",
+          workspace,
+          "--json",
+          "--require-completions",
+          "1",
+          "--require-interviews",
+          "0",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected forged checklist audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.receipts[0].errors).toEqual(
+        expect.arrayContaining(["criteria missing required id: pdf-exported"]),
+      );
+      expect(report.receipts[0].errors).not.toContain("integrity.digest mismatch");
+      expect(report.totals.invalidReceipts).toBe(1);
+      expect(report.totals.uniqueCompletionUsers).toBe(0);
+    }
+  });
+
+  test("rejects integrity-valid receipts with contradictory interview outcomes", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-validation-forged-outcome-"));
+    const receipt = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    receipt.outcome.notes = "";
+    receipt.completion.interviewOutcomeRecorded = false;
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(resignReceipt(receipt), null, 2));
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "validate",
+          "--input",
+          workspace,
+          "--json",
+          "--require-completions",
+          "1",
+          "--require-interviews",
+          "1",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected forged outcome audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.receipts[0].errors).toEqual(
+        expect.arrayContaining([
+          "completion.interviewOutcomeRecorded must match outcome.status",
+          "interview or offer outcomes require outcome.notes",
+        ]),
+      );
+      expect(report.receipts[0].errors).not.toContain("integrity.digest mismatch");
+      expect(report.totals.invalidReceipts).toBe(1);
+      expect(report.totals.uniqueCompletionUsers).toBe(0);
+      expect(report.totals.interviewProducingReceipts).toBe(0);
     }
   });
 

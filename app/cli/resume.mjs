@@ -207,6 +207,29 @@ const evidenceControlJsonFiles = new Set([
   "ACCEPTED_RECEIPTS.example.json",
 ]);
 
+const validationOutcomeStatuses = new Set([
+  "not-sent",
+  "sent",
+  "interview",
+  "offer",
+  "rejected",
+  "no-response",
+]);
+
+const requiredValidationCriterionIds = [
+  "resume-ready",
+  "jd-pasted",
+  "tailoring-computed",
+  "diff-reviewed",
+  "draft-accepted",
+  "no-operator-assistance",
+  "tester-labeled",
+  "json-exported",
+  "pdf-exported",
+];
+
+const isInterviewStatus = (status) => status === "interview" || status === "offer";
+
 const receiptFilesFor = async (input) => {
   if (!input) throw new Error("--input is required");
   const info = await stat(input);
@@ -278,6 +301,20 @@ const validateReceiptShape = (receipt) => {
     errors.push("attestations.noOperatorAssistance must be boolean");
   }
 
+  if (!isObject(receipt.target)) {
+    errors.push("target is required");
+  } else {
+    if (typeof receipt.target.title !== "string" || !receipt.target.title.trim()) {
+      errors.push("target.title is required");
+    }
+    if (typeof receipt.target.company !== "string" || !receipt.target.company.trim()) {
+      errors.push("target.company is required");
+    }
+    if (receipt.target.source !== "parsed" && receipt.target.source !== "unknown") {
+      errors.push("target.source must be parsed or unknown");
+    }
+  }
+
   if (!isObject(receipt.completion)) errors.push("completion is required");
   else {
     if (typeof receipt.completion.coreFlowComplete !== "boolean") {
@@ -305,17 +342,143 @@ const validateReceiptShape = (receipt) => {
     }
   }
 
+  let passedCriteria = 0;
   if (!Array.isArray(receipt.criteria) || receipt.criteria.length === 0) {
     errors.push("criteria must be a non-empty array");
   } else {
-    const failed = receipt.criteria.filter((criterion) => !criterion?.pass).length;
+    const criterionIds = new Set();
+    for (const criterion of receipt.criteria) {
+      if (!isObject(criterion)) {
+        errors.push("criteria entries must be objects");
+        continue;
+      }
+      if (typeof criterion.id !== "string" || !criterion.id.trim()) {
+        errors.push("criteria.id is required");
+      } else {
+        if (criterionIds.has(criterion.id)) errors.push(`duplicate criteria id: ${criterion.id}`);
+        criterionIds.add(criterion.id);
+      }
+      if (typeof criterion.label !== "string" || !criterion.label.trim()) {
+        errors.push(`criteria.${criterion.id ?? "unknown"}.label is required`);
+      }
+      if (typeof criterion.pass !== "boolean") {
+        errors.push(`criteria.${criterion.id ?? "unknown"}.pass must be boolean`);
+      } else if (criterion.pass) {
+        passedCriteria += 1;
+      }
+      if (typeof criterion.evidence !== "string" || !criterion.evidence.trim()) {
+        errors.push(`criteria.${criterion.id ?? "unknown"}.evidence is required`);
+      }
+    }
+    for (const criterionId of requiredValidationCriterionIds) {
+      if (!criterionIds.has(criterionId)) errors.push(`criteria missing required id: ${criterionId}`);
+    }
+    for (const criterionId of criterionIds) {
+      if (!requiredValidationCriterionIds.includes(criterionId)) {
+        errors.push(`criteria contains unknown id: ${criterionId}`);
+      }
+    }
+    const failed = receipt.criteria.filter((criterion) => criterion?.pass !== true).length;
+    if (isObject(receipt.completion)) {
+      if (
+        Number.isInteger(receipt.completion.requiredPassed) &&
+        receipt.completion.requiredPassed !== passedCriteria
+      ) {
+        errors.push("completion.requiredPassed must match passed criteria count");
+      }
+      if (
+        Number.isInteger(receipt.completion.requiredTotal) &&
+        receipt.completion.requiredTotal !== receipt.criteria.length
+      ) {
+        errors.push("completion.requiredTotal must match criteria count");
+      }
+      if (
+        typeof receipt.completion.coreFlowComplete === "boolean" &&
+        receipt.completion.coreFlowComplete !== (failed === 0)
+      ) {
+        errors.push("completion.coreFlowComplete must match criteria pass state");
+      }
+    }
     if (receipt.completion?.coreFlowComplete === true && failed > 0) {
       errors.push("coreFlowComplete cannot be true while criteria fail");
     }
   }
 
+  if (!isObject(receipt.metrics)) {
+    errors.push("metrics are required");
+  } else {
+    for (const field of ["baseScore", "tailoredScore", "scoreDelta"]) {
+      if (typeof receipt.metrics[field] !== "number" || !Number.isFinite(receipt.metrics[field])) {
+        errors.push(`metrics.${field} must be a finite number`);
+      }
+    }
+    for (const field of ["keywordCount", "matchedKeywordCount", "patchCount", "savedApplicationForks"]) {
+      if (!Number.isInteger(receipt.metrics[field]) || receipt.metrics[field] < 0) {
+        errors.push(`metrics.${field} must be a non-negative integer`);
+      }
+    }
+    if (
+      Number.isFinite(receipt.metrics.baseScore) &&
+      Number.isFinite(receipt.metrics.tailoredScore) &&
+      Number.isFinite(receipt.metrics.scoreDelta) &&
+      receipt.metrics.tailoredScore - receipt.metrics.baseScore !== receipt.metrics.scoreDelta
+    ) {
+      errors.push("metrics.scoreDelta must equal tailoredScore minus baseScore");
+    }
+    if (
+      Number.isInteger(receipt.metrics.keywordCount) &&
+      Number.isInteger(receipt.metrics.matchedKeywordCount) &&
+      receipt.metrics.matchedKeywordCount > receipt.metrics.keywordCount
+    ) {
+      errors.push("metrics.matchedKeywordCount cannot exceed keywordCount");
+    }
+  }
+
+  if (!isObject(receipt.exports)) {
+    errors.push("exports are required");
+  } else {
+    if (
+      receipt.exports.jsonAt !== undefined &&
+      (typeof receipt.exports.jsonAt !== "string" || Number.isNaN(Date.parse(receipt.exports.jsonAt)))
+    ) {
+      errors.push("exports.jsonAt must be an ISO timestamp");
+    }
+    if (
+      receipt.exports.pdfAt !== undefined &&
+      (typeof receipt.exports.pdfAt !== "string" || Number.isNaN(Date.parse(receipt.exports.pdfAt)))
+    ) {
+      errors.push("exports.pdfAt must be an ISO timestamp");
+    }
+    if (receipt.completion?.coreFlowComplete === true) {
+      if (Number.isNaN(Date.parse(receipt.exports.jsonAt ?? ""))) {
+        errors.push("complete receipts require exports.jsonAt");
+      }
+      if (Number.isNaN(Date.parse(receipt.exports.pdfAt ?? ""))) {
+        errors.push("complete receipts require exports.pdfAt");
+      }
+    }
+  }
+
   if (!isObject(receipt.outcome) || typeof receipt.outcome.status !== "string") {
     errors.push("outcome.status is required");
+  } else {
+    if (!validationOutcomeStatuses.has(receipt.outcome.status)) {
+      errors.push("outcome.status must be a known validation outcome");
+    }
+    if (typeof receipt.outcome.notes !== "string") {
+      errors.push("outcome.notes must be a string");
+    }
+    if (
+      isObject(receipt.completion) &&
+      typeof receipt.completion.interviewOutcomeRecorded === "boolean" &&
+      validationOutcomeStatuses.has(receipt.outcome.status) &&
+      receipt.completion.interviewOutcomeRecorded !== isInterviewStatus(receipt.outcome.status)
+    ) {
+      errors.push("completion.interviewOutcomeRecorded must match outcome.status");
+    }
+    if (isInterviewStatus(receipt.outcome.status) && !receipt.outcome.notes?.trim()) {
+      errors.push("interview or offer outcomes require outcome.notes");
+    }
   }
 
   if (!isObject(receipt.fingerprints)) errors.push("fingerprints are required");
@@ -323,6 +486,24 @@ const validateReceiptShape = (receipt) => {
     if (typeof receipt.fingerprints.resume !== "string") errors.push("fingerprints.resume is required");
     if (typeof receipt.fingerprints.jobDescription !== "string") {
       errors.push("fingerprints.jobDescription is required");
+    }
+  }
+
+  if (!Array.isArray(receipt.patchTargets)) {
+    errors.push("patchTargets must be an array");
+  } else {
+    if (receipt.patchTargets.some((target) => typeof target !== "string" || !target.trim())) {
+      errors.push("patchTargets entries must be non-empty strings");
+    }
+    if (receipt.completion?.coreFlowComplete === true && receipt.patchTargets.length === 0) {
+      errors.push("complete receipts require at least one patch target");
+    }
+    if (
+      isObject(receipt.metrics) &&
+      Number.isInteger(receipt.metrics.patchCount) &&
+      receipt.metrics.patchCount !== receipt.patchTargets.length
+    ) {
+      errors.push("metrics.patchCount must match patchTargets count");
     }
   }
 
@@ -591,11 +772,8 @@ const auditValidationReceipts = async (flags) => {
     }
 
     const tester = receipt?.tester?.label?.trim() ?? "";
-    const testerKey = tester.toLowerCase();
     const coreFlowComplete = receipt?.completion?.coreFlowComplete === true;
     const noOperatorAssistance = receipt?.attestations?.noOperatorAssistance === true;
-    const interviewOutcome =
-      receipt?.outcome?.status === "interview" || receipt?.outcome?.status === "offer";
     const hasOutcomeNotes = Boolean(receipt?.outcome?.notes?.trim());
     records.push({
       file,

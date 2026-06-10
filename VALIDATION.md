@@ -63,7 +63,7 @@ Validation receipts are local JSON files exported by the tester. They include a 
 
 Receipts do not include the full resume body or pasted job description body.
 
-The CLI auditor rejects receipts when the integrity digest does not match the receipt body, when a receipt id is duplicated, or when required fields contradict each other.
+The CLI auditor rejects receipts when the integrity digest does not match the receipt body, when a receipt id is duplicated, when the required checklist is incomplete, when completion counts do not match checklist state, or when target, metric, export, patch, or outcome fields contradict each other.
 
 The CLI auditor counts a completion receipt only when `attestations.noOperatorAssistance` is `true`.
 
