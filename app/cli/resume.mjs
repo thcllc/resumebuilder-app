@@ -521,6 +521,59 @@ const bestWindowFor = (receipts, windowDays) => {
   return best;
 };
 
+const isCountableTester = (tester) => {
+  const testerKey = String(tester ?? "").trim().toLowerCase();
+  return Boolean(testerKey) && testerKey !== "anonymous tester" && testerKey !== "missing";
+};
+
+const isReviewCandidate = (record) =>
+  record.errors.length === 0 &&
+  record.coreFlowComplete &&
+  record.noOperatorAssistance &&
+  isCountableTester(record.tester);
+
+const ownerReviewFor = (records) => {
+  const completionCandidates = records.filter(isReviewCandidate);
+  const interviewCandidates = completionCandidates.filter(
+    (record) =>
+      (record.outcome === "interview" || record.outcome === "offer") &&
+      record.hasOutcomeNotes,
+  );
+
+  return {
+    completionReceiptIds: completionCandidates.map((record) => record.receiptId),
+    interviewReceiptIds: interviewCandidates.map((record) => record.receiptId),
+    receipts: completionCandidates.map((record) => ({
+      receiptId: record.receiptId,
+      tester: record.tester,
+      outcome: record.outcome,
+      hasOutcomeNotes: record.hasOutcomeNotes,
+      createdAt: record.createdAt,
+      file: record.file,
+    })),
+  };
+};
+
+const defaultAcceptanceOutFor = async (input) => {
+  const info = await stat(input);
+  return join(info.isDirectory() ? input : dirname(input), "ACCEPTED_RECEIPTS.json");
+};
+
+const shellToken = (value) => {
+  const text = String(value ?? "");
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(text)) return text;
+  return `'${text.replaceAll("'", "'\\''")}'`;
+};
+
+const ownerAcceptanceCommandFor = ({ input, out, receiptIds }) =>
+  [
+    "node app/cli/resume.mjs accept",
+    `--input ${shellToken(input)}`,
+    `--out ${shellToken(out)}`,
+    `--owner ${shellToken("OWNER NAME")}`,
+    `--receipt-ids ${shellToken(receiptIds.join(","))}`,
+  ].join(" ");
+
 const auditValidationReceipts = async (flags) => {
   const files = await receiptFilesFor(flags.input);
   const acceptanceRequired = flags.requireAccepted === true || flags["require-accepted"] === "true";
@@ -577,7 +630,6 @@ const auditValidationReceipts = async (flags) => {
     acceptance.valid = acceptance.errors.length === 0;
   }
   for (const record of records) {
-    const testerKey = record.tester.trim().toLowerCase();
     record.ownerAccepted = acceptance.valid && acceptance.receiptIds.includes(record.receiptId);
     const acceptedForCounting =
       record.ownerAccepted || (!acceptance.provided && !acceptanceRequired);
@@ -586,8 +638,7 @@ const auditValidationReceipts = async (flags) => {
       record.coreFlowComplete &&
       record.noOperatorAssistance &&
       acceptedForCounting &&
-      testerKey &&
-      testerKey !== "anonymous tester";
+      isCountableTester(record.tester);
     record.countableInterview =
       record.countableCompletion &&
       (record.outcome === "interview" || record.outcome === "offer") &&
@@ -604,6 +655,17 @@ const auditValidationReceipts = async (flags) => {
   const bestInterviewWindow = bestWindowFor(interviewReceipts, windowDays);
   const invalidReceipts = records.filter((record) => record.errors.length > 0).length;
   const ownerAcceptance = (!acceptance.provided && !acceptanceRequired) || acceptance.valid;
+  const ownerReview = {
+    ...ownerReviewFor(records),
+    acceptanceOut: await defaultAcceptanceOutFor(flags.input),
+  };
+  ownerReview.acceptanceCommand = ownerReview.completionReceiptIds.length
+    ? ownerAcceptanceCommandFor({
+        input: flags.input,
+        out: ownerReview.acceptanceOut,
+        receiptIds: ownerReview.completionReceiptIds,
+      })
+    : "";
   const gates = {
     fiveUserCompletion: completionUsers.size >= requiredCompletions,
     interviewProduction: bestInterviewWindow.count >= requiredInterviews,
@@ -632,6 +694,7 @@ const auditValidationReceipts = async (flags) => {
       bestInterviewWindowCount: bestInterviewWindow.count,
     },
     bestInterviewWindow,
+    ownerReview,
     acceptance,
     gates: {
       ...gates,
@@ -664,6 +727,14 @@ const printValidationAudit = (report) => {
       console.log(`- ${receipt.file}: ${receipt.errors.join("; ")}`);
     }
   }
+  if (report.ownerReview.completionReceiptIds.length) {
+    console.log("Owner review candidates:");
+    for (const receipt of report.ownerReview.receipts) {
+      const outcomeNote = receipt.hasOutcomeNotes ? "notes" : "no notes";
+      console.log(`- ${receipt.receiptId}: ${receipt.tester}, ${receipt.outcome}, ${outcomeNote}`);
+    }
+    console.log(`Acceptance command template: ${report.ownerReview.acceptanceCommand}`);
+  }
   if (report.acceptance.provided || report.requirements.ownerAcceptanceRequired) {
     console.log(`Owner acceptance: ${report.acceptance.valid ? "pass" : "fail"}`);
     if (report.acceptance.errors.length) console.log(`Acceptance errors: ${report.acceptance.errors.join("; ")}`);
@@ -676,11 +747,6 @@ const parseReceiptIds = (value) =>
     .split(/[,\s]+/)
     .map((receiptId) => receiptId.trim())
     .filter(Boolean);
-
-const defaultAcceptanceOutFor = async (input) => {
-  const info = await stat(input);
-  return join(info.isDirectory() ? input : dirname(input), "ACCEPTED_RECEIPTS.json");
-};
 
 const writeAcceptanceManifest = async (flags) => {
   const input = flags.input || "receipts";

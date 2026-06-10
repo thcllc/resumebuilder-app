@@ -126,6 +126,7 @@ What you will do
   await expect(page.getByText("I need a no-account validation run for Resume Builder.")).toBeVisible();
   await expect(page.getByText("Owner intake command")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
+  await expect(page.getByText("owner review candidate receipt ids")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs accept")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs release")).toBeVisible();
   await expect(page.getByText("receipts/ACCEPTED_RECEIPTS.json").first()).toBeVisible();

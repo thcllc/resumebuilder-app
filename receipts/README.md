@@ -10,6 +10,8 @@ Run the audit from the repository root:
 node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
 ```
 
+The audit prints owner review candidate receipt ids and an acceptance command template. Review receipt files before accepting any id.
+
 For machine-readable output:
 
 ```bash

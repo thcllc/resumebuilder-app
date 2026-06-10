@@ -2188,6 +2188,7 @@ Send back only the exported rbv-*.json file unless you explicitly want to share 
             <code>receipts/</code> folder, then audit the cohort locally.
           </p>
           <pre>{`node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7`}</pre>
+          <p>The audit prints owner review candidate receipt ids; review files before accepting.</p>
           <p>Then write the owner acceptance manifest with explicit accepted receipt ids:</p>
           <pre>{`node app/cli/resume.mjs accept --input receipts --out receipts/ACCEPTED_RECEIPTS.json --owner "OWNER NAME" --receipt-ids rbv-1234abcd,rbv-5678efab`}</pre>
           <p>Prove the release decision gate after the manifest exists:</p>

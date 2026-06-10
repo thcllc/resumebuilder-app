@@ -166,6 +166,96 @@ test.describe("resume CLI", () => {
       uniqueCompletionUsers: 2,
       bestInterviewWindowCount: 1,
     });
+    expect(report.ownerReview).toMatchObject({
+      completionReceiptIds: [receiptOne.receiptId, receiptTwo.receiptId],
+      interviewReceiptIds: [receiptOne.receiptId],
+      acceptanceOut: join(workspace, "ACCEPTED_RECEIPTS.json"),
+      acceptanceCommand: expect.stringContaining(
+        `--receipt-ids ${receiptOne.receiptId},${receiptTwo.receiptId}`,
+      ),
+    });
+    expect(report.ownerReview.receipts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          receiptId: receiptOne.receiptId,
+          tester: "tester-01",
+          outcome: "interview",
+          hasOutcomeNotes: true,
+        }),
+        expect.objectContaining({
+          receiptId: receiptTwo.receiptId,
+          tester: "tester-02",
+          outcome: "sent",
+          hasOutcomeNotes: false,
+        }),
+      ]),
+    );
+  });
+
+  test("prints owner review candidate receipt ids for acceptance decisions", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-validation-review-"));
+    const receipt = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receipt, null, 2));
+
+    const audit = await execFileAsync(
+      "node",
+      [
+        "cli/resume.mjs",
+        "validate",
+        "--input",
+        workspace,
+        "--require-completions",
+        "1",
+        "--require-interviews",
+        "1",
+      ],
+      { cwd: process.cwd() },
+    );
+
+    expect(audit.stdout).toContain("Owner review candidates:");
+    expect(audit.stdout).toContain(`${receipt.receiptId}: tester-01, interview, notes`);
+    expect(audit.stdout).toContain("Acceptance command template:");
+    expect(audit.stdout).toContain(`--receipt-ids ${receipt.receiptId}`);
+  });
+
+  test("uses the receipt directory for acceptance templates when input is a file", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-validation-file-"));
+    const receipt = validationReceiptFor({
+      testerLabel: "tester-03",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:06:00.000Z",
+    });
+    const receiptFile = join(workspace, "tester-03.json");
+    await writeFile(receiptFile, JSON.stringify(receipt, null, 2));
+
+    const audit = await execFileAsync(
+      "node",
+      [
+        "cli/resume.mjs",
+        "validate",
+        "--input",
+        receiptFile,
+        "--json",
+        "--require-completions",
+        "1",
+        "--require-interviews",
+        "1",
+      ],
+      { cwd: process.cwd() },
+    );
+    const report = JSON.parse(audit.stdout);
+
+    expect(report.ownerReview.acceptanceOut).toBe(join(workspace, "ACCEPTED_RECEIPTS.json"));
+    expect(report.ownerReview.acceptanceCommand).toContain(`--input ${receiptFile}`);
+    expect(report.ownerReview.acceptanceCommand).toContain(
+      `--out ${join(workspace, "ACCEPTED_RECEIPTS.json")}`,
+    );
   });
 
   test("counts only owner-accepted receipts when a manifest is provided", async () => {

@@ -101,6 +101,7 @@ The audit reports:
 - Unique completion users.
 - Interview-producing receipt count.
 - Best interview-producing window for the configured `--window-days`.
+- Owner review candidate receipt ids and an acceptance command template.
 - Per-receipt errors for malformed or contradictory receipts.
 
 ## Owner Decision

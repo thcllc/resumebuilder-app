@@ -58,6 +58,8 @@ Audit all returned receipts:
 node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
 ```
 
+The audit prints owner review candidate receipt ids. Use the candidate list to review files, not as automatic acceptance.
+
 Write the private owner acceptance manifest after review:
 
 ```bash

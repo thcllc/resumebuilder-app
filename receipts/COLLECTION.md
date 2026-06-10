@@ -38,6 +38,8 @@ Audit the cohort:
 node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
 ```
 
+The human-readable audit prints owner review candidate receipt ids and an acceptance command template. Review the files before using those ids.
+
 Produce machine-readable output:
 
 ```bash
