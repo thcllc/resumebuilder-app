@@ -113,6 +113,7 @@ What you will do
   await expect(page.getByText("docker build -t resumebuilderapp")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs export")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs validate")).toBeVisible();
+  await expect(page.getByText("node cli/resume.mjs release")).toBeVisible();
   await expect(page.getByText("roadmap placeholders")).toHaveCount(0);
 
   await page.getByLabel("Primary").getByRole("button", { name: "Validate" }).click();
@@ -121,6 +122,9 @@ What you will do
   await expect(page.getByText("Core flow")).toBeVisible();
   await expect(page.getByText("Owner intake command")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
+  await expect(page.getByText("node app/cli/resume.mjs release")).toBeVisible();
+  await expect(page.getByText("Tester handoff")).toBeVisible();
+  await expect(page.getByText("https://resumebuilder.app/#validate")).toBeVisible();
   await expect(page.getByText("Complete", { exact: true })).toHaveCount(0);
   await page.getByLabel("No operator assistance").check();
   await expect(page.getByText("Complete", { exact: true })).toBeVisible();
