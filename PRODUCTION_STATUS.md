@@ -1,6 +1,6 @@
 # Production Status
 
-Last verified: 2026-06-10 09:44 UTC.
+Last verified: 2026-06-10 09:48 UTC.
 
 ## Live App
 
@@ -28,9 +28,9 @@ The root JSX files are retained only as historical design reference. Do not trea
 
 ## Verification
 
-Verified commit: `5f94ccd77bacde1c8575266a6e8158f08532f574`.
+Verified implementation and CI workflow commit: `5e88ed81a48984bcec0ebd436a08c6bbd08eb987`.
 
-GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27267640708`.
+GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27267849706`.
 
 CI status: success. The `app` job passed install, typecheck, Chromium browser install, Playwright smoke tests, and production build. The `docker` job passed the Docker image build.
 
@@ -68,7 +68,7 @@ Current smoke suite covers:
 
 ## Known External Verification Gaps
 
-- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27267640708`.
+- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27267849706`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
 
 ## Release Gate
