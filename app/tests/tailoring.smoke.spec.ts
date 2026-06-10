@@ -5,6 +5,14 @@ test("non-Vercel JD produces computed patches that can be accepted and exported"
   page,
 }) => {
   await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: async (text: string) => {
+          (window as unknown as { __resumeCopiedText: string }).__resumeCopiedText = text;
+        },
+      },
+      configurable: true,
+    });
     window.localStorage.clear();
   });
 
@@ -72,4 +80,19 @@ What you will do
   const pdfText = await readFile(pdfPath, "utf8");
   expect(pdfText.startsWith("%PDF-1.4")).toBe(true);
   expect(pdfText).toContain("Jordan Kim");
+
+  await page.getByLabel("Primary").getByRole("button", { name: "Letter" }).click();
+  await expect(page.getByRole("heading", { name: "Nimbus Labs" })).toBeVisible();
+  await expect(page.getByText("Generated locally from the current resume and pasted JD.")).toBeVisible();
+  await expect(page.getByText("Vercel - Hiring Team")).toHaveCount(0);
+
+  await page.getByLabel("Primary").getByRole("button", { name: "Outreach" }).click();
+  await expect(page.getByText("Nimbus Labs").first()).toBeVisible();
+  await expect(page.getByText("Senior Platform Product Designer").first()).toBeVisible();
+  await page.getByRole("button", { name: "Copy" }).first().click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { __resumeCopiedText: string }).__resumeCopiedText),
+    )
+    .toContain("Nimbus Labs");
 });

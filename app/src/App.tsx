@@ -75,6 +75,7 @@ type ApplicationVersion = {
   resume: ResumeData;
   template: Template;
 };
+type OutreachDraft = { tag: string; title?: string; body: string };
 
 const STORAGE_KEY = "resume-builder-workspace-v2";
 const VERSIONS_STORAGE_KEY = "resume-builder-versions-v1";
@@ -120,102 +121,6 @@ What you will do
 - Partner with engineers on API design and developer experience
 - Evolve our design system and prototyping culture
 - Ship continuously in production`;
-
-const letters: Record<Tone, string[]> = {
-  warm: [
-    "I have been a Vercel customer since preview deploy URLs changed how I show work. Your platform role reads like the same kind of problem I have spent the last few years solving.",
-    "At Figma I led design for Plugin API v3, from research through launch. The work was equal parts API design, developer experience, dashboards, and the design system that tied them together.",
-    "Before that, I was the first design hire at Linear and helped establish the product system still used today. I prototype heavily, read the code, and prefer shipping real surfaces over handing off static mocks.",
-  ],
-  direct: [
-    "Your platform team posting describes work I have already shipped. I would like to do that work at Vercel.",
-    "At Figma I led Plugin API v3, adopted by 14,000 developers and surfaced across 9M files. At Linear I built the first design system.",
-    "I prototype in code, collaborate closely with engineering, and know how to make complex developer surfaces feel humane.",
-  ],
-  formal: [
-    "I am writing to express interest in the Senior Product Designer role on Vercel's platform team.",
-    "My experience aligns with the responsibilities in the role: developer-facing platform surfaces, API design, and design systems at scale.",
-    "I would welcome the opportunity to discuss how this background could contribute to the team.",
-  ],
-  punchy: [
-    "Three lines, then I am done:",
-    "Plugin API v3 at Figma. 14k developers. 9M files. I led design end to end.",
-    "First designer at Linear. Built the system. I want to do the same kind of platform work at Vercel.",
-  ],
-};
-
-const outreachDrafts: Record<OutreachChannel, Array<{ tag: string; title?: string; body: string }>> = {
-  linkedin: [
-    {
-      tag: "Warm",
-      body:
-        "Hi Lee - your post about platform DX made me re-read your SDK notes. I led Plugin API v3 at Figma and saw the platform PD role. Open to a short chat?",
-    },
-    {
-      tag: "Direct",
-      body:
-        "Hi Lee - Maya Chen, designer. Led Plugin API v3 at Figma, 14k developers and 9M files. Vercel's platform role looks like the same shape of problem.",
-    },
-    {
-      tag: "Portfolio",
-      body:
-        "Long-time Vercel user. I wrote up my Plugin API design process here: mayachen.design/plugin-api. Happy to send a tailored resume if the role is still open.",
-    },
-  ],
-  email: [
-    {
-      tag: "Warm",
-      title: "Plugin API v3 -> platform PD",
-      body:
-        "Hi Lee,\n\nI am Maya, a designer who led Plugin API v3 at Figma. The Vercel platform role maps closely to work I have shipped: API design, DX, dashboards, and design systems.\n\nResume attached if useful.",
-    },
-    {
-      tag: "Direct",
-      title: "Senior PD, platform",
-      body:
-        "Applying to the platform PD role. Most relevant work: Plugin API v3 at Figma and Linear's first design system. Available to talk this week.",
-    },
-    {
-      tag: "Story",
-      title: "A Plugin API question",
-      body:
-        "When you redesign a deploy pipeline, do you start with failure states or the happy path? I led similar work at Figma, and that question is why the role caught my eye.",
-    },
-  ],
-  referral: [
-    {
-      tag: "Warm",
-      body:
-        "Sam - I saw Vercel posted a platform design role and it looks like a strong fit. Would a referral to Lee or the hiring manager feel okay?",
-    },
-    {
-      tag: "Short",
-      body: "Vercel platform PD role is open. Do you know who is hiring? I would value a referral if it is easy.",
-    },
-    {
-      tag: "Context",
-      body:
-        "The role overlaps with my Plugin API v3 work at Figma. No pressure if it is awkward, but you were the obvious person to ask first.",
-    },
-  ],
-  recruiter: [
-    {
-      tag: "Interested",
-      body:
-        "Thanks for reaching out. I would like to talk about the platform PD role. Available Tuesday or Wednesday afternoon ET.",
-    },
-    {
-      tag: "Questions",
-      body:
-        "Open to learning more. Before we book: is this Lee's team, is it remote-friendly, and what is the compensation band?",
-    },
-    {
-      tag: "Later",
-      body:
-        "Appreciate the note. I am not actively looking right now, but please keep me in mind for next year.",
-    },
-  ],
-};
 
 const socialProfiles: Record<
   Exclude<SocialTab, "cleanup">,
@@ -486,6 +391,150 @@ const formatUpdated = (updatedAt: string) => {
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
   return `${days}d`;
+};
+
+const roleLabel = (analysis: TailoringAnalysis) =>
+  analysis.job.title === "Untitled role" ? "the role" : analysis.job.title;
+
+const companyLabel = (analysis: TailoringAnalysis) =>
+  analysis.job.company === "Unknown company" ? "your team" : analysis.job.company;
+
+const topKeywordLabels = (analysis: TailoringAnalysis, limit = 3) =>
+  analysis.keywords
+    .filter((keyword) => keyword.hit || keyword.weight === "high")
+    .slice(0, limit)
+    .map((keyword) => keyword.label.toLowerCase());
+
+const strongestProof = (resume: ResumeData) =>
+  resume.work.flatMap((work) => work.highlights).find((highlight) => /\d|%|\$/.test(highlight)) ??
+  resume.work[0]?.highlights[0] ??
+  resume.summary;
+
+const buildCoverLetter = (resume: ResumeData, analysis: TailoringAnalysis, tone: Tone) => {
+  const company = companyLabel(analysis);
+  const role = roleLabel(analysis);
+  const keywords = topKeywordLabels(analysis, 3);
+  const keywordPhrase = keywords.length ? keywords.join(", ") : "the priorities in the posting";
+  const proof = strongestProof(resume);
+  const applicant = resume.basics.name || "The applicant";
+  const firstName = applicant.split(" ")[0] || "I";
+
+  const paragraphs: Record<Tone, string[]> = {
+    warm: [
+      `I am interested in ${role} at ${company} because the posting points at work I have already been doing: ${keywordPhrase}.`,
+      `${proof}`,
+      `I would bring ${resume.basics.label || "a focused background"} and a practical bias toward turning the job description into shipped, measurable work.`,
+    ],
+    direct: [
+      `${company} needs ${keywordPhrase}; my resume already has proof in those areas.`,
+      `${proof}`,
+      `I would like to discuss where ${role} is expected to create measurable impact first.`,
+    ],
+    formal: [
+      `I am writing to express interest in ${role} at ${company}.`,
+      `My background as ${resume.basics.label || "a candidate"} aligns with the role's emphasis on ${keywordPhrase}. ${proof}`,
+      "I would welcome the opportunity to discuss how this experience can contribute to the team.",
+    ],
+    punchy: [
+      `${role} at ${company} maps to three things in my resume: ${keywordPhrase}.`,
+      `${proof}`,
+      "If those are the problems this hire needs to solve, I would value a conversation.",
+    ],
+  };
+
+  return {
+    date: new Date().toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }),
+    to: `${company} - Hiring Team`,
+    greeting: company === "your team" ? "Hi team," : `Hi ${company} team,`,
+    paragraphs: paragraphs[tone],
+    signature: applicant,
+    meters: {
+      personal: analysis.job.source === "parsed" ? 92 : 76,
+      mentionsJd: Math.min(96, 60 + analysis.keywords.length * 5),
+      avoidsRestating: tone === "formal" ? 76 : 84,
+      cliches: tone === "punchy" ? 88 : 82,
+    },
+    firstName,
+  };
+};
+
+const buildOutreachDrafts = (
+  resume: ResumeData,
+  analysis: TailoringAnalysis,
+): Record<OutreachChannel, OutreachDraft[]> => {
+  const company = companyLabel(analysis);
+  const role = roleLabel(analysis);
+  const applicant = resume.basics.name || "Candidate";
+  const headline = resume.basics.label || "candidate";
+  const proof = strongestProof(resume);
+  const keywords = topKeywordLabels(analysis, 2).join(" and ") || "the role priorities";
+  const portfolio = resume.basics.url ? ` Portfolio: ${resume.basics.url}.` : "";
+
+  return {
+    linkedin: [
+      {
+        tag: "Warm",
+        body: `Hi - I saw ${company} is hiring for ${role}. My background as ${headline} lines up with ${keywords}. Open to a short chat?`,
+      },
+      {
+        tag: "Proof",
+        body: `Hi - ${applicant} here. Most relevant proof for ${role}: ${proof} Would value a quick conversation if this is still open.`,
+      },
+      {
+        tag: "Portfolio",
+        body: `The ${role} posting maps closely to work in my resume around ${keywords}.${portfolio} Happy to send the tailored resume.`,
+      },
+    ],
+    email: [
+      {
+        tag: "Warm",
+        title: `${role} - ${applicant}`,
+        body: `Hi,\n\nI am interested in ${role} at ${company}. My resume lines up with ${keywords}, and the clearest proof is: ${proof}\n\n${portfolio ? `${portfolio}\n\n` : ""}Best,\n${applicant}`,
+      },
+      {
+        tag: "Direct",
+        title: `${role} application`,
+        body: `Applying to ${role}. Relevant background: ${headline}. Most relevant proof: ${proof}\n\nAvailable to talk this week if the role is still open.`,
+      },
+      {
+        tag: "Question",
+        title: `Question about ${role}`,
+        body: `Hi,\n\nBefore applying more formally, I wanted to ask what ${company} expects ${role} to improve first. The posting emphasizes ${keywords}, which maps to work I have already shipped.\n\n${applicant}`,
+      },
+    ],
+    referral: [
+      {
+        tag: "Warm",
+        body: `I saw ${company} posted ${role}. It looks aligned with ${keywords}. Would a referral or intro feel appropriate?`,
+      },
+      {
+        tag: "Short",
+        body: `${company} has ${role} open. My most relevant proof: ${proof} Do you know who owns the search?`,
+      },
+      {
+        tag: "Context",
+        body: `No pressure if it is awkward, but the role overlaps with my ${headline} work and I wanted to ask you before applying cold.`,
+      },
+    ],
+    recruiter: [
+      {
+        tag: "Interested",
+        body: `Thanks for reaching out. I would like to discuss ${role}; the strongest overlap in my resume is ${keywords}.`,
+      },
+      {
+        tag: "Questions",
+        body: `Open to learning more. Before booking: who owns the role, is it remote-friendly, and what is the compensation band?`,
+      },
+      {
+        tag: "Later",
+        body: `Appreciate the note. I am not ready to move forward today, but ${role} is aligned enough that I would like to stay in touch.`,
+      },
+    ],
+  };
 };
 
 const downloadBlob = (name: string, blob: Blob) => {
@@ -859,9 +908,21 @@ export function App() {
           go={go}
         />
       )}
-      {page === "letter" && <CoverLetterPage tone={tone} setTone={setTone} />}
+      {page === "letter" && (
+        <CoverLetterPage
+          resume={resume}
+          analysis={tailoringAnalysis}
+          tone={tone}
+          setTone={setTone}
+        />
+      )}
       {page === "outreach" && (
-        <OutreachPage channel={outreachChannel} setChannel={setOutreachChannel} />
+        <OutreachPage
+          resume={resume}
+          analysis={tailoringAnalysis}
+          channel={outreachChannel}
+          setChannel={setOutreachChannel}
+        />
       )}
       {page === "social" && <SocialPage tab={socialTab} setTab={setSocialTab} />}
       {page === "interview" && (
@@ -1423,21 +1484,26 @@ function VersionsPage({
 }
 
 function CoverLetterPage({
+  resume,
+  analysis,
   tone,
   setTone,
 }: {
+  resume: ResumeData;
+  analysis: TailoringAnalysis;
   tone: Tone;
   setTone: (tone: Tone) => void;
 }) {
+  const letter = buildCoverLetter(resume, analysis, tone);
+
   return (
     <main className="document-layout">
       <aside className="document-controls">
-        <PrototypeNotice detail="Cover letters are a prototype surface and do not consume the current JD yet." />
         <div className="panel-head compact">
           <div>
             <div className="eyebrow">Cover letter</div>
-            <h1>Vercel</h1>
-            <p>Generated from the tailored resume and JD.</p>
+            <h1>{companyLabel(analysis)}</h1>
+            <p>Generated locally from the current resume and pasted JD.</p>
           </div>
         </div>
         <Segmented<Tone>
@@ -1451,43 +1517,51 @@ function CoverLetterPage({
           ]}
           onChange={setTone}
         />
-        <SignalMeter label="Personal" value={92} />
-        <SignalMeter label="Mentions JD" value={88} />
-        <SignalMeter label="Avoids restating resume" value={76} />
-        <SignalMeter label="Cliches" value={94} />
+        <SignalMeter label="Personal" value={letter.meters.personal} />
+        <SignalMeter label="Mentions JD" value={letter.meters.mentionsJd} />
+        <SignalMeter label="Avoids restating resume" value={letter.meters.avoidsRestating} />
+        <SignalMeter label="Cliches" value={letter.meters.cliches} />
       </aside>
       <section className="letter-paper">
-        <div className="letter-date">May 8, 2026</div>
+        <div className="letter-date">{letter.date}</div>
         <div className="letter-to">
-          <strong>Vercel - Hiring Team</strong>
-          <span>vercel.com/careers</span>
+          <strong>{letter.to}</strong>
+          <span>{roleLabel(analysis)}</span>
         </div>
-        <p>Hi Vercel team,</p>
-        {letters[tone].map((paragraph) => (
+        <p>{letter.greeting}</p>
+        {letter.paragraphs.map((paragraph) => (
           <p key={paragraph}>{paragraph}</p>
         ))}
         <p>Warmly,</p>
-        <div className="signature">Maya Chen</div>
+        <div className="signature">{letter.signature}</div>
       </section>
     </main>
   );
 }
 
 function OutreachPage({
+  resume,
+  analysis,
   channel,
   setChannel,
 }: {
+  resume: ResumeData;
+  analysis: TailoringAnalysis;
   channel: OutreachChannel;
   setChannel: (channel: OutreachChannel) => void;
 }) {
+  const drafts = buildOutreachDrafts(resume, analysis);
+  const copyDraft = async (body: string) => {
+    await navigator.clipboard?.writeText(body);
+  };
+
   return (
     <main className="content-page">
       <PageHeader
         kicker="Outreach"
         title="Three drafts to pick from."
-        body="Short, channel-aware messages generated from the resume and job context."
+        body="Short, channel-aware messages generated locally from the resume and job context."
       />
-      <PrototypeNotice detail="Outreach drafts are sample copy until they consume the current resume and JD." />
       <Segmented<OutreachChannel>
         label="Channel"
         value={channel}
@@ -1500,12 +1574,14 @@ function OutreachPage({
         onChange={setChannel}
       />
       <section className="draft-grid">
-        {outreachDrafts[channel].map((draft) => (
+        {drafts[channel].map((draft) => (
           <article className="draft-card" key={draft.tag}>
             <span>{draft.tag}</span>
             {draft.title && <strong>{draft.title}</strong>}
             <p>{draft.body}</p>
-            <button className="button">Copy</button>
+            <button className="button" onClick={() => void copyDraft(draft.body)}>
+              Copy
+            </button>
           </article>
         ))}
       </section>
