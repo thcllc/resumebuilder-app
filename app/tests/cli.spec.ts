@@ -231,4 +231,173 @@ test.describe("resume CLI", () => {
       expect(report.totals.uniqueCompletionUsers).toBe(0);
     }
   });
+
+  test("fails release audit without receipts or owner waiver", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-empty-"));
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "release",
+          "--input",
+          workspace,
+          "--json",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected release audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.gates).toMatchObject({
+        receipts: false,
+        ownerWaiver: false,
+        externalValidation: false,
+        all: false,
+      });
+    }
+  });
+
+  test("passes release audit with valid receipt cohort", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-receipts-"));
+    await writeFile(
+      join(workspace, "tester-01.json"),
+      JSON.stringify(
+        validationReceiptFor({
+          testerLabel: "tester-01",
+          outcome: "interview",
+          notes: "Recruiter screen booked after sending the tailored PDF.",
+          createdAt: "2026-06-10T10:04:00.000Z",
+        }),
+        null,
+        2,
+      ),
+    );
+    await writeFile(
+      join(workspace, "tester-02.json"),
+      JSON.stringify(
+        validationReceiptFor({
+          testerLabel: "tester-02",
+          outcome: "sent",
+          notes: "",
+          createdAt: "2026-06-10T10:05:00.000Z",
+        }),
+        null,
+        2,
+      ),
+    );
+
+    const audit = await execFileAsync(
+      "node",
+      [
+        "cli/resume.mjs",
+        "release",
+        "--input",
+        workspace,
+        "--json",
+        "--require-completions",
+        "2",
+        "--require-interviews",
+        "1",
+      ],
+      { cwd: process.cwd() },
+    );
+    const report = JSON.parse(audit.stdout);
+
+    expect(report.gates).toMatchObject({
+      receipts: true,
+      ownerWaiver: false,
+      externalValidation: true,
+      all: true,
+    });
+  });
+
+  test("passes release audit with explicit owner waiver", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-waiver-"));
+    const waiver = join(workspace, "VALIDATION_WAIVER.md");
+    await writeFile(
+      waiver,
+      [
+        "Waiver status: waived",
+        "Project: resumebuilder-app",
+        "Owner: Project Owner",
+        "Date: 2026-06-10",
+        "Scope: external validation receipt gate",
+        "Statement: I explicitly waive the real-user validation receipt gate for resumebuilder-app.",
+        "Signature: Project Owner",
+        "",
+      ].join("\n"),
+    );
+
+    const audit = await execFileAsync(
+      "node",
+      [
+        "cli/resume.mjs",
+        "release",
+        "--input",
+        workspace,
+        "--waiver",
+        waiver,
+        "--json",
+      ],
+      { cwd: process.cwd() },
+    );
+    const report = JSON.parse(audit.stdout);
+
+    expect(report.gates).toMatchObject({
+      receipts: false,
+      ownerWaiver: true,
+      externalValidation: true,
+      all: true,
+    });
+    expect(report.waiver).toMatchObject({
+      provided: true,
+      valid: true,
+      errors: [],
+    });
+  });
+
+  test("rejects placeholder owner waiver", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-placeholder-"));
+    const waiver = join(workspace, "VALIDATION_WAIVER.md");
+    await writeFile(
+      waiver,
+      [
+        "Waiver status: waived",
+        "Project: resumebuilder-app",
+        "Owner: TODO",
+        "Date: 2026-06-10",
+        "Scope: external validation receipt gate",
+        "Statement: I explicitly waive the real-user validation receipt gate for resumebuilder-app.",
+        "Signature: TODO",
+        "",
+      ].join("\n"),
+    );
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "release",
+          "--input",
+          workspace,
+          "--waiver",
+          waiver,
+          "--json",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected placeholder waiver release audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.gates.ownerWaiver).toBe(false);
+      expect(report.waiver.errors).toEqual(expect.arrayContaining(["Owner is required", "Signature is required"]));
+    }
+  });
 });

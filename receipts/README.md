@@ -18,4 +18,6 @@ node app/cli/resume.mjs validate --input receipts --json
 
 Collection instructions: [COLLECTION.md](COLLECTION.md).
 
+Waiver format: [VALIDATION_WAIVER.example.md](VALIDATION_WAIVER.example.md).
+
 The project is not complete until the owner accepts enough real receipts to satisfy `VALIDATION.md`, or explicitly waives that evidence gate.

@@ -83,3 +83,11 @@ The audit reports:
 ## Owner Decision
 
 The project can be called complete only after the owner accepts enough real receipts to satisfy both gates or explicitly waives those gates in writing.
+
+Audit that decision gate locally:
+
+```bash
+node app/cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md
+```
+
+The release audit exits zero only when the receipt cohort passes or the waiver file is explicit and structurally valid. Use [receipts/VALIDATION_WAIVER.example.md](receipts/VALIDATION_WAIVER.example.md) as the required waiver format.

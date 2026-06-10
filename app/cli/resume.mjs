@@ -45,6 +45,7 @@ Usage:
   node cli/resume.mjs score --input resume.json
   node cli/resume.mjs export --input resume.json --out exports --json --pdf
   node cli/resume.mjs validate --input receipts --json
+  node cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md --json
 `;
 
 const normalizeResume = (raw) => ({
@@ -326,6 +327,82 @@ const validateReceiptShape = (receipt) => {
   return errors;
 };
 
+const parseWaiverFields = (text) => {
+  const fields = {};
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/^([A-Za-z ]+):\s*(.*)$/);
+    if (!match) continue;
+    fields[match[1].trim().toLowerCase().replace(/\s+/g, "-")] = match[2].trim();
+  }
+  return fields;
+};
+
+const isPlaceholder = (value) =>
+  !value || /^(todo|tbd|n\/a|none|placeholder|\[.+\]|<.+>)$/i.test(value.trim());
+
+const validateOwnerWaiver = async (input) => {
+  if (!input) {
+    return {
+      provided: false,
+      valid: false,
+      file: "",
+      fields: {},
+      errors: ["No waiver file provided"],
+    };
+  }
+
+  let text = "";
+  try {
+    text = await readFile(input, "utf8");
+  } catch (error) {
+    return {
+      provided: true,
+      valid: false,
+      file: input,
+      fields: {},
+      errors: [`Cannot read waiver file: ${error.message}`],
+    };
+  }
+
+  const fields = parseWaiverFields(text);
+  const errors = [];
+  const waiverDate = Date.parse(`${fields.date ?? ""}T00:00:00.000Z`);
+  const now = Date.now();
+
+  if (fields["waiver-status"] !== "waived") {
+    errors.push("Waiver status must be waived");
+  }
+  if (fields.project !== "resumebuilder-app") {
+    errors.push("Project must be resumebuilder-app");
+  }
+  if (isPlaceholder(fields.owner)) {
+    errors.push("Owner is required");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fields.date ?? "") || Number.isNaN(waiverDate)) {
+    errors.push("Date must be YYYY-MM-DD");
+  } else if (waiverDate > now) {
+    errors.push("Date cannot be in the future");
+  }
+  if (fields.scope !== "external validation receipt gate") {
+    errors.push("Scope must be external validation receipt gate");
+  }
+  const statement = fields.statement ?? "";
+  if (!/explicitly waive/i.test(statement) || !/real-user validation/i.test(statement)) {
+    errors.push("Statement must explicitly waive the real-user validation gate");
+  }
+  if (isPlaceholder(fields.signature)) {
+    errors.push("Signature is required");
+  }
+
+  return {
+    provided: true,
+    valid: errors.length === 0,
+    file: input,
+    fields,
+    errors,
+  };
+};
+
 const bestWindowFor = (receipts, windowDays) => {
   const windowMs = windowDays * 24 * 60 * 60 * 1000;
   const sorted = receipts
@@ -479,6 +556,44 @@ const printValidationAudit = (report) => {
   console.log(`Result: ${report.gates.all ? "pass" : "fail"}`);
 };
 
+const auditReleaseReadiness = async (flags) => {
+  const validation = await auditValidationReceipts({ ...flags, input: flags.input || "receipts" });
+  const waiver = await validateOwnerWaiver(flags.waiver);
+  const externalValidation = validation.gates.all || waiver.valid;
+
+  return {
+    schema: "resumebuilder.release-audit.v1",
+    generatedAt: new Date().toISOString(),
+    requirements: {
+      externalValidation: "valid receipt cohort or explicit owner waiver",
+    },
+    validation: {
+      input: validation.input,
+      gates: validation.gates,
+      totals: validation.totals,
+      bestInterviewWindow: validation.bestInterviewWindow,
+    },
+    waiver,
+    gates: {
+      receipts: validation.gates.all,
+      ownerWaiver: waiver.valid,
+      externalValidation,
+      all: externalValidation,
+    },
+  };
+};
+
+const printReleaseAudit = (report) => {
+  console.log("Release readiness audit");
+  console.log(`Receipt gate: ${report.gates.receipts ? "pass" : "fail"}`);
+  console.log(`Owner waiver: ${report.gates.ownerWaiver ? "pass" : "fail"}`);
+  if (report.waiver.errors.length) {
+    console.log(`Waiver errors: ${report.waiver.errors.join("; ")}`);
+  }
+  console.log(`External validation: ${report.gates.externalValidation ? "pass" : "fail"}`);
+  console.log(`Result: ${report.gates.all ? "pass" : "fail"}`);
+};
+
 const main = async () => {
   const flags = parseArgs(process.argv.slice(2));
   if (!flags.command || flags.help) {
@@ -511,6 +626,14 @@ const main = async () => {
     const report = await auditValidationReceipts(flags);
     if (flags.json) console.log(JSON.stringify(report, null, 2));
     else printValidationAudit(report);
+    if (!report.gates.all) process.exitCode = 1;
+    return;
+  }
+
+  if (flags.command === "release") {
+    const report = await auditReleaseReadiness(flags);
+    if (flags.json) console.log(JSON.stringify(report, null, 2));
+    else printReleaseAudit(report);
     if (!report.gates.all) process.exitCode = 1;
     return;
   }

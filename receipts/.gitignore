@@ -1,3 +1,4 @@
 *.json
+VALIDATION_WAIVER.md
 !.gitignore
 !README.md

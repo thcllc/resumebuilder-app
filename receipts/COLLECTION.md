@@ -44,3 +44,11 @@ Reject a receipt when the CLI reports a structural error, the integrity digest i
 ## Completion Decision
 
 The project can be called complete only after the owner accepts enough real receipts to satisfy `VALIDATION.md`, or explicitly waives the external validation gate in writing.
+
+Audit the completion decision:
+
+```bash
+node app/cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md
+```
+
+Use `VALIDATION_WAIVER.example.md` as the waiver format. Do not treat the example file as an active waiver.
