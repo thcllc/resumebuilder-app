@@ -35,11 +35,15 @@ import {
 import { analyzeTailoring, type TailoringAnalysis } from "./lib/tailoring";
 import { createResumePdfBlob } from "./lib/pdf";
 import {
+  auditReceiptCohort,
+  buildAcceptanceManifest,
   buildValidationChecklist,
   buildValidationReceipt,
   createValidationState,
+  isAcceptanceOwnerNameValid,
   isInterviewOutcome,
   validationOutcomes,
+  type ReceiptCohortAudit,
   type ValidationOutcome,
   type ValidationState,
 } from "./lib/validation";
@@ -2051,6 +2055,9 @@ function ValidationPage({
   resetValidationRun: () => void;
   exportValidationReceipt: () => void;
 }) {
+  const [receiptAudit, setReceiptAudit] = useState<ReceiptCohortAudit | null>(null);
+  const [ownerName, setOwnerName] = useState("");
+  const [acceptedReceiptIds, setAcceptedReceiptIds] = useState<string[]>([]);
   const criteria = buildValidationChecklist({
     resume,
     jd,
@@ -2071,6 +2078,52 @@ function ValidationPage({
   const copyCampaignText = async (text: string) => {
     await navigator.clipboard?.writeText(text);
   };
+  const importOwnerReceipts = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
+
+    const inputs = await Promise.all(
+      files.map(async (file) => {
+        try {
+          return {
+            fileName: file.name,
+            receipt: JSON.parse(await file.text()),
+          };
+        } catch (error) {
+          return {
+            fileName: file.name,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }),
+    );
+    const audit = auditReceiptCohort(inputs);
+    setReceiptAudit(audit);
+    setAcceptedReceiptIds(audit.ownerReview.completionReceiptIds);
+    event.target.value = "";
+  };
+  const toggleAcceptedReceipt = (receiptId: string) => {
+    setAcceptedReceiptIds((current) =>
+      current.includes(receiptId)
+        ? current.filter((id) => id !== receiptId)
+        : [...current, receiptId],
+    );
+  };
+  const exportAcceptanceManifest = () => {
+    if (!ownerName.trim() || acceptedReceiptIds.length === 0) return;
+    const manifest = buildAcceptanceManifest({
+      owner: ownerName,
+      receiptIds: acceptedReceiptIds,
+    });
+    downloadFile(
+      "ACCEPTED_RECEIPTS.json",
+      "application/json",
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
+  };
+  const acceptanceOwnerReady = isAcceptanceOwnerNameValid(ownerName);
+  const acceptanceReady = acceptanceOwnerReady && acceptedReceiptIds.length > 0;
+  const invalidReceiptRecords = receiptAudit?.receipts.filter((receipt) => receipt.errors.length > 0) ?? [];
 
   return (
     <main className="content-page">
@@ -2222,6 +2275,119 @@ function ValidationPage({
             </button>
           </article>
         ))}
+      </section>
+
+      <section className="owner-intake" aria-label="Owner receipt intake">
+        <article className="owner-intake-panel wide">
+          <div className="owner-intake-head">
+            <div>
+              <div className="eyebrow">Owner receipt intake</div>
+              <h2>Audit returned tester receipts before acceptance.</h2>
+              <p>
+                Import <code>rbv-*.json</code> files locally. The browser checks structure,
+                integrity, duplicate ids, anonymous testers, assistance attestations, export proof,
+                and interview outcome notes before suggesting owner-review ids.
+              </p>
+            </div>
+            <label className="button primary">
+              <Upload size={16} />
+              Import receipts
+              <input
+                className="hidden-input"
+                type="file"
+                accept="application/json,.json"
+                multiple
+                onChange={importOwnerReceipts}
+              />
+            </label>
+          </div>
+
+          {receiptAudit ? (
+            <>
+              <div className="owner-metric-grid">
+                <MetricCard
+                  label="Valid files"
+                  value={`${receiptAudit.totals.validReceipts}/${receiptAudit.totals.files}`}
+                  note={`${receiptAudit.totals.invalidReceipts} invalid`}
+                />
+                <MetricCard
+                  label="Completion users"
+                  value={`${receiptAudit.totals.uniqueCompletionUsers}/${receiptAudit.requirements.uniqueCompletionUsers}`}
+                  note="non-anonymous, complete, unassisted"
+                />
+                <MetricCard
+                  label="Interview receipts"
+                  value={`${receiptAudit.totals.bestInterviewWindowCount}/${receiptAudit.requirements.interviewProducingReceipts}`}
+                  note={`${receiptAudit.requirements.interviewWindowDays}-day best window`}
+                />
+              </div>
+
+              {invalidReceiptRecords.length > 0 && (
+                <div className="invalid-receipt-list">
+                  <div className="eyebrow">Invalid receipts</div>
+                  {invalidReceiptRecords.map((record) => (
+                    <article className="invalid-receipt" key={record.fileName}>
+                      <strong>{record.fileName}</strong>
+                      <p>{record.errors.join("; ")}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {receiptAudit.ownerReview.receipts.length > 0 ? (
+                <div className="owner-candidate-list">
+                  <div className="eyebrow">Owner review candidates</div>
+                  {receiptAudit.ownerReview.receipts.map((record) => (
+                    <label className="acceptance-row" key={record.receiptId}>
+                      <input
+                        type="checkbox"
+                        checked={acceptedReceiptIds.includes(record.receiptId)}
+                        onChange={() => toggleAcceptedReceipt(record.receiptId)}
+                      />
+                      <span>
+                        <strong>{record.receiptId}</strong>
+                        {record.tester} · {record.outcome}
+                        {record.hasOutcomeNotes ? " · outcome notes" : ""}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state owner-empty">
+                  No countable owner-review candidates yet. Import valid completed receipts from
+                  non-anonymous, unassisted tester runs.
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="empty-state owner-empty">
+              No receipt files imported yet. This stays local in the browser and does not upload
+              tester evidence anywhere.
+            </div>
+          )}
+        </article>
+
+        <aside className="owner-intake-panel">
+          <div className="eyebrow">Acceptance manifest</div>
+          <h2>Export owner acceptance.</h2>
+          <p>
+            Download <code>ACCEPTED_RECEIPTS.json</code> only after the owner reviews the selected
+            ids. Place it beside the returned receipts before running the release audit.
+          </p>
+          <Field label="Owner name" value={ownerName} onChange={setOwnerName} />
+          {!acceptanceOwnerReady && (
+            <p className="manifest-hint">Enter the real owner name; placeholders like TODO are rejected.</p>
+          )}
+          <div className="manifest-summary">
+            <strong>{acceptedReceiptIds.length}</strong>
+            <span>selected receipt ids</span>
+          </div>
+          <button className="button primary full" disabled={!acceptanceReady} onClick={exportAcceptanceManifest}>
+            <FileJson size={16} />
+            Export ACCEPTED_RECEIPTS.json
+          </button>
+          <pre>{`node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md`}</pre>
+        </aside>
       </section>
 
       <section className="validation-protocol">

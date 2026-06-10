@@ -155,11 +155,14 @@ What you will do
   await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
   await expect(page.getByText("owner review candidate receipt ids")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs accept")).toBeVisible();
-  await expect(page.getByText("node app/cli/resume.mjs release")).toBeVisible();
+  await expect(page.getByText("node app/cli/resume.mjs release").first()).toBeVisible();
   await expect(page.getByText("receipts/ACCEPTED_RECEIPTS.json").first()).toBeVisible();
   await expect(page.getByText("Tester handoff")).toBeVisible();
   await expect(page.getByText("https://resumebuilder.app/#validate", { exact: true })).toBeVisible();
   await expect(page.getByText("Outcome follow-up:")).toBeVisible();
+  await expect(page.getByLabel("Owner receipt intake")).toBeVisible();
+  await expect(page.getByText("Audit returned tester receipts before acceptance.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export ACCEPTED_RECEIPTS.json" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Export receipt" })).toBeDisabled();
   await expect(page.getByText("Complete", { exact: true })).toHaveCount(0);
   await page.getByLabel("No operator assistance").check();
@@ -180,6 +183,7 @@ What you will do
   if (!receiptPath) throw new Error("Expected validation receipt to produce a readable download.");
   const receipt = JSON.parse(await readFile(receiptPath, "utf8")) as {
     schema: string;
+    receiptId: string;
     run: { id: string; startedAt: string };
     completion: { coreFlowComplete: boolean; interviewOutcomeRecorded: boolean };
     attestations: { noOperatorAssistance: boolean };
@@ -198,4 +202,30 @@ What you will do
     algorithm: "fnv1a-stable-v1",
     digest: expect.stringMatching(/^[a-f0-9]{8}$/),
   });
+
+  await page.locator('input[type="file"][multiple]').setInputFiles(receiptPath);
+  await expect(page.getByText("Valid files")).toBeVisible();
+  await expect(page.getByText("1/1").first()).toBeVisible();
+  await expect(page.getByText(receipt.receiptId).first()).toBeVisible();
+  await expect(page.getByText("tester-01 · interview · outcome notes")).toBeVisible();
+  await page.getByLabel("Owner name").fill("TODO");
+  await expect(page.getByText("placeholders like TODO are rejected")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export ACCEPTED_RECEIPTS.json" })).toBeDisabled();
+  await page.getByLabel("Owner name").fill("Jane Owner");
+
+  const acceptancePromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export ACCEPTED_RECEIPTS.json" }).click();
+  const acceptanceDownload = await acceptancePromise;
+  expect(acceptanceDownload.suggestedFilename()).toBe("ACCEPTED_RECEIPTS.json");
+
+  const acceptancePath = await acceptanceDownload.path();
+  if (!acceptancePath) throw new Error("Expected owner acceptance manifest to be readable.");
+  const acceptance = JSON.parse(await readFile(acceptancePath, "utf8")) as {
+    schema: string;
+    acceptedBy: string;
+    receiptIds: string[];
+  };
+  expect(acceptance.schema).toBe("resumebuilder.accepted-receipts.v1");
+  expect(acceptance.acceptedBy).toBe("Jane Owner");
+  expect(acceptance.receiptIds).toEqual([receipt.receiptId]);
 });

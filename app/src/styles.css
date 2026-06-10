@@ -1720,6 +1720,142 @@ button {
   justify-content: center;
 }
 
+.owner-intake {
+  max-width: 1180px;
+  margin: 16px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+}
+
+.owner-intake-panel {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.owner-intake-panel.wide {
+  min-width: 0;
+}
+
+.owner-intake-panel h2 {
+  margin: 8px 0 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.owner-intake-panel p {
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.owner-intake-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  align-items: start;
+}
+
+.owner-intake-head p {
+  max-width: 720px;
+}
+
+.owner-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.invalid-receipt-list,
+.owner-candidate-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.invalid-receipt,
+.acceptance-row {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  padding: 11px;
+}
+
+.invalid-receipt {
+  border-color: rgba(189, 86, 53, 0.38);
+  background: #fff8f4;
+}
+
+.invalid-receipt p {
+  margin: 5px 0 0;
+  font-size: 13px;
+}
+
+.acceptance-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.acceptance-row input {
+  margin-top: 2px;
+}
+
+.acceptance-row strong {
+  display: block;
+  color: var(--ink);
+}
+
+.owner-empty {
+  margin-top: 16px;
+}
+
+.manifest-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  margin: 14px 0 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.manifest-summary strong {
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 400;
+}
+
+.manifest-summary span {
+  color: var(--ink-3);
+}
+
+.manifest-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.owner-intake-panel pre {
+  margin: 14px 0 0;
+  background: #18140f;
+  color: #f6f2ea;
+  border-radius: 6px;
+  padding: 14px;
+  overflow: auto;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
 .validation-protocol {
   max-width: 1180px;
   margin: 16px auto 0;
@@ -1859,6 +1995,7 @@ button {
   .validation-grid,
   .validation-layout,
   .campaign-actions,
+  .owner-intake,
   .validation-protocol {
     display: block;
   }
@@ -1913,8 +2050,19 @@ button {
   .validation-status,
   .validation-panel,
   .campaign-action-card,
+  .owner-intake-panel,
   .validation-protocol .code-card {
     margin-top: 14px;
+  }
+
+  .owner-intake-head,
+  .owner-metric-grid {
+    display: block;
+  }
+
+  .owner-intake-head .button,
+  .owner-metric-grid .metric-card {
+    margin-top: 12px;
   }
 
   .profile-preview-card {
