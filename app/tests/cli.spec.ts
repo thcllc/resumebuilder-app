@@ -62,6 +62,38 @@ const validationReceiptFor = ({
   });
 };
 
+const writeAcceptedReceipts = async (
+  workspace: string,
+  receiptIds: string[],
+  overrides: Partial<{
+    schema: string;
+    project: string;
+    acceptedBy: string;
+    acceptedAt: string;
+    receiptIds: string[];
+    notes: string;
+  }> = {},
+) => {
+  const accepted = join(workspace, "ACCEPTED_RECEIPTS.json");
+  await writeFile(
+    accepted,
+    JSON.stringify(
+      {
+        schema: "resumebuilder.accepted-receipts.v1",
+        project: "resumebuilder-app",
+        acceptedBy: "Project Owner",
+        acceptedAt: "2020-01-01T00:00:00.000Z",
+        receiptIds,
+        notes: "Accepted by the owner as real-user validation evidence.",
+        ...overrides,
+      },
+      null,
+      2,
+    ),
+  );
+  return accepted;
+};
+
 test.describe("resume CLI", () => {
   test("scores and exports JSON Resume files", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "resume-cli-"));
@@ -90,32 +122,20 @@ test.describe("resume CLI", () => {
 
   test("audits validation receipt cohorts", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "resume-validation-cli-"));
-    await writeFile(
-      join(workspace, "tester-01.json"),
-      JSON.stringify(
-        validationReceiptFor({
-          testerLabel: "tester-01",
-          outcome: "interview",
-          notes: "Recruiter screen booked after sending the tailored PDF.",
-          createdAt: "2026-06-10T10:04:00.000Z",
-        }),
-        null,
-        2,
-      ),
-    );
-    await writeFile(
-      join(workspace, "tester-02.json"),
-      JSON.stringify(
-        validationReceiptFor({
-          testerLabel: "tester-02",
-          outcome: "sent",
-          notes: "",
-          createdAt: "2026-06-10T10:05:00.000Z",
-        }),
-        null,
-        2,
-      ),
-    );
+    const receiptOne = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    const receiptTwo = validationReceiptFor({
+      testerLabel: "tester-02",
+      outcome: "sent",
+      notes: "",
+      createdAt: "2026-06-10T10:05:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receiptOne, null, 2));
+    await writeFile(join(workspace, "tester-02.json"), JSON.stringify(receiptTwo, null, 2));
 
     const audit = await execFileAsync(
       "node",
@@ -142,9 +162,72 @@ test.describe("resume CLI", () => {
     });
     expect(report.totals).toMatchObject({
       files: 2,
+      ownerAcceptedReceipts: 0,
       uniqueCompletionUsers: 2,
       bestInterviewWindowCount: 1,
     });
+  });
+
+  test("counts only owner-accepted receipts when a manifest is provided", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-validation-accepted-"));
+    const acceptedReceipt = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    const unacceptedReceipt = validationReceiptFor({
+      testerLabel: "tester-02",
+      outcome: "interview",
+      notes: "Second recruiter screen booked.",
+      createdAt: "2026-06-10T10:05:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(acceptedReceipt, null, 2));
+    await writeFile(join(workspace, "tester-02.json"), JSON.stringify(unacceptedReceipt, null, 2));
+    const accepted = await writeAcceptedReceipts(workspace, [acceptedReceipt.receiptId]);
+
+    const audit = await execFileAsync(
+      "node",
+      [
+        "cli/resume.mjs",
+        "validate",
+        "--input",
+        workspace,
+        "--accepted",
+        accepted,
+        "--json",
+        "--require-completions",
+        "1",
+        "--require-interviews",
+        "1",
+      ],
+      { cwd: process.cwd() },
+    );
+    const report = JSON.parse(audit.stdout);
+
+    expect(report.gates).toMatchObject({
+      all: true,
+      ownerAcceptance: true,
+    });
+    expect(report.totals).toMatchObject({
+      ownerAcceptedReceipts: 1,
+      uniqueCompletionUsers: 1,
+      bestInterviewWindowCount: 1,
+    });
+    expect(report.receipts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          receiptId: acceptedReceipt.receiptId,
+          ownerAccepted: true,
+          countableCompletion: true,
+        }),
+        expect.objectContaining({
+          receiptId: unacceptedReceipt.receiptId,
+          ownerAccepted: false,
+          countableCompletion: false,
+        }),
+      ]),
+    );
   });
 
   test("fails validation audits with tampered receipts", async () => {
@@ -306,32 +389,24 @@ test.describe("resume CLI", () => {
 
   test("passes release audit with valid receipt cohort", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "resume-release-receipts-"));
-    await writeFile(
-      join(workspace, "tester-01.json"),
-      JSON.stringify(
-        validationReceiptFor({
-          testerLabel: "tester-01",
-          outcome: "interview",
-          notes: "Recruiter screen booked after sending the tailored PDF.",
-          createdAt: "2026-06-10T10:04:00.000Z",
-        }),
-        null,
-        2,
-      ),
-    );
-    await writeFile(
-      join(workspace, "tester-02.json"),
-      JSON.stringify(
-        validationReceiptFor({
-          testerLabel: "tester-02",
-          outcome: "sent",
-          notes: "",
-          createdAt: "2026-06-10T10:05:00.000Z",
-        }),
-        null,
-        2,
-      ),
-    );
+    const receiptOne = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    const receiptTwo = validationReceiptFor({
+      testerLabel: "tester-02",
+      outcome: "sent",
+      notes: "",
+      createdAt: "2026-06-10T10:05:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receiptOne, null, 2));
+    await writeFile(join(workspace, "tester-02.json"), JSON.stringify(receiptTwo, null, 2));
+    const accepted = await writeAcceptedReceipts(workspace, [
+      receiptOne.receiptId,
+      receiptTwo.receiptId,
+    ]);
 
     const audit = await execFileAsync(
       "node",
@@ -340,6 +415,8 @@ test.describe("resume CLI", () => {
         "release",
         "--input",
         workspace,
+        "--accepted",
+        accepted,
         "--json",
         "--require-completions",
         "2",
@@ -356,6 +433,105 @@ test.describe("resume CLI", () => {
       externalValidation: true,
       all: true,
     });
+    expect(report.validation.acceptance).toMatchObject({
+      provided: true,
+      valid: true,
+      receiptIds: [receiptOne.receiptId, receiptTwo.receiptId],
+    });
+  });
+
+  test("fails release audit with valid receipts but no owner acceptance manifest", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-unaccepted-"));
+    const receiptOne = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    const receiptTwo = validationReceiptFor({
+      testerLabel: "tester-02",
+      outcome: "sent",
+      notes: "",
+      createdAt: "2026-06-10T10:05:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receiptOne, null, 2));
+    await writeFile(join(workspace, "tester-02.json"), JSON.stringify(receiptTwo, null, 2));
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "release",
+          "--input",
+          workspace,
+          "--json",
+          "--require-completions",
+          "2",
+          "--require-interviews",
+          "1",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected release audit to fail without owner acceptance.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.gates).toMatchObject({
+        receipts: false,
+        ownerWaiver: false,
+        externalValidation: false,
+        all: false,
+      });
+      expect(report.validation.gates.ownerAcceptance).toBe(false);
+      expect(report.validation.acceptance.errors).toContain("No acceptance manifest provided");
+      expect(report.validation.totals).toMatchObject({
+        ownerAcceptedReceipts: 0,
+        uniqueCompletionUsers: 0,
+      });
+    }
+  });
+
+  test("rejects placeholder owner acceptance manifests", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-placeholder-accepted-"));
+    const receipt = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receipt, null, 2));
+    const accepted = await writeAcceptedReceipts(workspace, [receipt.receiptId], {
+      acceptedBy: "TODO",
+    });
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "release",
+          "--input",
+          workspace,
+          "--accepted",
+          accepted,
+          "--json",
+          "--require-completions",
+          "1",
+          "--require-interviews",
+          "1",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected release audit to fail with placeholder owner acceptance.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.validation.gates.ownerAcceptance).toBe(false);
+      expect(report.validation.acceptance.errors).toContain("acceptedBy is required");
+    }
   });
 
   test("passes release audit with explicit owner waiver", async () => {

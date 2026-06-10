@@ -52,7 +52,7 @@ node app/cli/resume.mjs validate --input receipts --require-completions 5 --requ
 Audit the release decision gate:
 
 ```bash
-node app/cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md
+node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md
 ```
 
 ## Docker
@@ -88,7 +88,7 @@ Current required checks are typecheck, Playwright smoke tests, production build,
 
 ## Validation
 
-The app has a local Validate page that exports `rbv-*.json` receipts after a tester completes the core resume/JD/diff/export loop. Receipts are tester-controlled, include a run id plus integrity digest, and do not include the full resume body or pasted job description body. Put receipts in [receipts](receipts) and run `node app/cli/resume.mjs validate --input receipts --json` to audit a cohort. Run `node app/cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md --json` to prove whether the external validation gate is satisfied by receipts or an explicit owner waiver.
+The app has a local Validate page that exports `rbv-*.json` receipts after a tester completes the core resume/JD/diff/export loop. Receipts are tester-controlled, include a run id plus integrity digest, and do not include the full resume body or pasted job description body. Put receipts in [receipts](receipts) and run `node app/cli/resume.mjs validate --input receipts --json` to audit a cohort. List owner-accepted receipt ids in `receipts/ACCEPTED_RECEIPTS.json`, then run `node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md --json` to prove whether the external validation gate is satisfied by accepted receipts or an explicit owner waiver.
 
 ## License
 

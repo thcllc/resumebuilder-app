@@ -1,0 +1,10 @@
+{
+  "schema": "resumebuilder.accepted-receipts.v1",
+  "project": "resumebuilder-app",
+  "acceptedBy": "Jane Owner",
+  "acceptedAt": "2026-06-10T00:00:00.000Z",
+  "receiptIds": [
+    "rbv-1234abcd"
+  ],
+  "notes": "List only receipts the owner accepts as real-user validation evidence."
+}

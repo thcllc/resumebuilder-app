@@ -22,6 +22,8 @@ Place returned receipts in the repository root `receipts/` folder.
 
 Receipt JSON files in this folder are ignored by Git. Keep accepted and rejected receipts locally or in a private evidence store.
 
+Copy `ACCEPTED_RECEIPTS.example.json` to `ACCEPTED_RECEIPTS.json`, fill in the owner acceptance fields, and list only receipt ids the owner accepts as real-user validation evidence. The active acceptance manifest is ignored by Git.
+
 Audit the cohort:
 
 ```bash
@@ -32,6 +34,12 @@ Produce machine-readable output:
 
 ```bash
 node app/cli/resume.mjs validate --input receipts --json
+```
+
+Audit only owner-accepted receipt ids:
+
+```bash
+node app/cli/resume.mjs validate --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --require-completions 5 --require-interviews 10 --window-days 7
 ```
 
 ## Acceptance Rules
@@ -49,7 +57,7 @@ The project can be called complete only after the owner accepts enough real rece
 Audit the completion decision:
 
 ```bash
-node app/cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md
+node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md
 ```
 
 Use `VALIDATION_WAIVER.example.md` as the waiver format. Do not treat the example file as an active waiver.

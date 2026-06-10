@@ -114,6 +114,7 @@ What you will do
   await expect(page.getByText("node cli/resume.mjs export")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs validate")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs release")).toBeVisible();
+  await expect(page.getByText("../receipts/ACCEPTED_RECEIPTS.json").first()).toBeVisible();
   await expect(page.getByText("roadmap placeholders")).toHaveCount(0);
 
   await page.getByLabel("Primary").getByRole("button", { name: "Validate" }).click();
@@ -123,6 +124,7 @@ What you will do
   await expect(page.getByText("Owner intake command")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs release")).toBeVisible();
+  await expect(page.getByText("receipts/ACCEPTED_RECEIPTS.json").first()).toBeVisible();
   await expect(page.getByText("Tester handoff")).toBeVisible();
   await expect(page.getByText("https://resumebuilder.app/#validate")).toBeVisible();
   await expect(page.getByRole("button", { name: "Export receipt" })).toBeDisabled();

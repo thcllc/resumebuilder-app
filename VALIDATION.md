@@ -65,6 +65,20 @@ The CLI auditor rejects receipts when the integrity digest does not match the re
 
 The CLI auditor counts a completion receipt only when `attestations.noOperatorAssistance` is `true`.
 
+## Owner Acceptance
+
+Raw receipt audits prove whether files are structurally valid and countable. Release readiness requires owner acceptance of specific receipt ids.
+
+Copy [receipts/ACCEPTED_RECEIPTS.example.json](receipts/ACCEPTED_RECEIPTS.example.json) to `receipts/ACCEPTED_RECEIPTS.json`, enter the owner's name and acceptance timestamp, and list only receipt ids the owner accepts as real-user validation evidence.
+
+`receipts/ACCEPTED_RECEIPTS.json` is private evidence and is ignored by Git.
+
+Use `--accepted` to audit only owner-accepted receipts:
+
+```bash
+node app/cli/resume.mjs validate --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --require-completions 5 --require-interviews 10 --window-days 7
+```
+
 ## Audit Output
 
 Use `--json` to produce machine-readable audit output:
@@ -88,7 +102,7 @@ The project can be called complete only after the owner accepts enough real rece
 Audit that decision gate locally:
 
 ```bash
-node app/cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md
+node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md
 ```
 
-The release audit exits zero only when the receipt cohort passes or the waiver file is explicit and structurally valid. Use [receipts/VALIDATION_WAIVER.example.md](receipts/VALIDATION_WAIVER.example.md) as the required waiver format.
+The release audit exits zero only when the owner-accepted receipt cohort passes or the waiver file is explicit and structurally valid. Use [receipts/VALIDATION_WAIVER.example.md](receipts/VALIDATION_WAIVER.example.md) as the required waiver format.

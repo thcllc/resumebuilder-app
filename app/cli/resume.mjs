@@ -45,7 +45,7 @@ Usage:
   node cli/resume.mjs score --input resume.json
   node cli/resume.mjs export --input resume.json --out exports --json --pdf
   node cli/resume.mjs validate --input receipts --json
-  node cli/resume.mjs release --input receipts --waiver receipts/VALIDATION_WAIVER.md --json
+  node cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md --json
 `;
 
 const normalizeResume = (raw) => ({
@@ -201,6 +201,11 @@ const toNumber = (value, fallback) => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 };
 
+const evidenceControlJsonFiles = new Set([
+  "ACCEPTED_RECEIPTS.json",
+  "ACCEPTED_RECEIPTS.example.json",
+]);
+
 const receiptFilesFor = async (input) => {
   if (!input) throw new Error("--input is required");
   const info = await stat(input);
@@ -212,7 +217,11 @@ const receiptFilesFor = async (input) => {
     entries.map(async (entry) => {
       const path = join(input, entry.name);
       if (entry.isDirectory()) return receiptFilesFor(path);
-      return entry.isFile() && entry.name.endsWith(".json") ? [path] : [];
+      return entry.isFile() &&
+        entry.name.endsWith(".json") &&
+        !evidenceControlJsonFiles.has(entry.name)
+        ? [path]
+        : [];
     }),
   );
   return nested.flat().sort();
@@ -332,6 +341,83 @@ const validateReceiptShape = (receipt) => {
   return errors;
 };
 
+const validateAcceptedReceipts = async (input) => {
+  if (!input) {
+    return {
+      provided: false,
+      valid: false,
+      file: "",
+      receiptIds: [],
+      errors: ["No acceptance manifest provided"],
+    };
+  }
+
+  let manifest = null;
+  try {
+    manifest = JSON.parse(await readFile(input, "utf8"));
+  } catch (error) {
+    return {
+      provided: true,
+      valid: false,
+      file: input,
+      receiptIds: [],
+      errors: [`Cannot read acceptance manifest: ${error.message}`],
+    };
+  }
+
+  const errors = [];
+  if (!isObject(manifest)) {
+    return {
+      provided: true,
+      valid: false,
+      file: input,
+      receiptIds: [],
+      errors: ["Acceptance manifest must be an object"],
+    };
+  }
+
+  if (manifest.schema !== "resumebuilder.accepted-receipts.v1") {
+    errors.push("schema must be resumebuilder.accepted-receipts.v1");
+  }
+  if (manifest.project !== "resumebuilder-app") {
+    errors.push("project must be resumebuilder-app");
+  }
+  if (isPlaceholder(manifest.acceptedBy)) {
+    errors.push("acceptedBy is required");
+  }
+  if (Number.isNaN(Date.parse(manifest.acceptedAt ?? ""))) {
+    errors.push("acceptedAt must be an ISO timestamp");
+  } else if (Date.parse(manifest.acceptedAt) > Date.now()) {
+    errors.push("acceptedAt cannot be in the future");
+  }
+  if (!Array.isArray(manifest.receiptIds) || manifest.receiptIds.length === 0) {
+    errors.push("receiptIds must be a non-empty array");
+  }
+
+  const receiptIds = Array.isArray(manifest.receiptIds)
+    ? manifest.receiptIds.map((receiptId) => String(receiptId).trim())
+    : [];
+  const uniqueReceiptIds = new Set(receiptIds);
+  if (uniqueReceiptIds.size !== receiptIds.length) {
+    errors.push("receiptIds must not contain duplicates");
+  }
+  for (const receiptId of receiptIds) {
+    if (!/^rbv-[a-f0-9]{8}$/.test(receiptId)) {
+      errors.push(`invalid receiptId: ${receiptId}`);
+    }
+  }
+
+  return {
+    provided: true,
+    valid: errors.length === 0,
+    file: input,
+    receiptIds,
+    acceptedBy: manifest.acceptedBy ?? "",
+    acceptedAt: manifest.acceptedAt ?? "",
+    errors,
+  };
+};
+
 const parseWaiverFields = (text) => {
   const fields = {};
   for (const line of text.split(/\r?\n/)) {
@@ -343,7 +429,9 @@ const parseWaiverFields = (text) => {
 };
 
 const isPlaceholder = (value) =>
-  !value || /^(todo|tbd|n\/a|none|placeholder|\[.+\]|<.+>)$/i.test(value.trim());
+  typeof value !== "string" ||
+  !value.trim() ||
+  /^(todo|tbd|n\/a|none|placeholder|\[.+\]|<.+>)$/i.test(value.trim());
 
 const validateOwnerWaiver = async (input) => {
   if (!input) {
@@ -434,6 +522,8 @@ const bestWindowFor = (receipts, windowDays) => {
 
 const auditValidationReceipts = async (flags) => {
   const files = await receiptFilesFor(flags.input);
+  const acceptanceRequired = flags.requireAccepted === true || flags["require-accepted"] === "true";
+  const acceptance = await validateAcceptedReceipts(flags.accepted);
   const records = [];
 
   for (const file of files) {
@@ -453,14 +543,6 @@ const auditValidationReceipts = async (flags) => {
     const interviewOutcome =
       receipt?.outcome?.status === "interview" || receipt?.outcome?.status === "offer";
     const hasOutcomeNotes = Boolean(receipt?.outcome?.notes?.trim());
-    const countableCompletion =
-      errors.length === 0 &&
-      coreFlowComplete &&
-      noOperatorAssistance &&
-      testerKey &&
-      testerKey !== "anonymous tester";
-    const countableInterview = countableCompletion && interviewOutcome && hasOutcomeNotes;
-
     records.push({
       file,
       receiptId: receipt?.receiptId ?? basename(file),
@@ -468,10 +550,11 @@ const auditValidationReceipts = async (flags) => {
       createdAt: receipt?.createdAt ?? "",
       coreFlowComplete,
       noOperatorAssistance,
+      ownerAccepted: false,
       outcome: receipt?.outcome?.status ?? "missing",
       hasOutcomeNotes,
-      countableCompletion,
-      countableInterview,
+      countableCompletion: false,
+      countableInterview: false,
       errors,
     });
   }
@@ -483,12 +566,25 @@ const auditValidationReceipts = async (flags) => {
   for (const record of records) {
     if (ids.get(record.receiptId) > 1) record.errors.push("duplicate receiptId");
   }
+  if (acceptance.valid) {
+    const recordIds = new Set(records.map((record) => record.receiptId));
+    for (const receiptId of acceptance.receiptIds) {
+      if (!recordIds.has(receiptId)) {
+        acceptance.errors.push(`accepted receiptId not found: ${receiptId}`);
+      }
+    }
+    acceptance.valid = acceptance.errors.length === 0;
+  }
   for (const record of records) {
     const testerKey = record.tester.trim().toLowerCase();
+    record.ownerAccepted = acceptance.valid && acceptance.receiptIds.includes(record.receiptId);
+    const acceptedForCounting =
+      record.ownerAccepted || (!acceptance.provided && !acceptanceRequired);
     record.countableCompletion =
       record.errors.length === 0 &&
       record.coreFlowComplete &&
       record.noOperatorAssistance &&
+      acceptedForCounting &&
       testerKey &&
       testerKey !== "anonymous tester";
     record.countableInterview =
@@ -506,10 +602,12 @@ const auditValidationReceipts = async (flags) => {
   const windowDays = Math.max(1, toNumber(flags["window-days"], 7));
   const bestInterviewWindow = bestWindowFor(interviewReceipts, windowDays);
   const invalidReceipts = records.filter((record) => record.errors.length > 0).length;
+  const ownerAcceptance = (!acceptance.provided && !acceptanceRequired) || acceptance.valid;
   const gates = {
     fiveUserCompletion: completionUsers.size >= requiredCompletions,
     interviewProduction: bestInterviewWindow.count >= requiredInterviews,
     noInvalidReceipts: invalidReceipts === 0,
+    ownerAcceptance,
   };
 
   return {
@@ -520,20 +618,27 @@ const auditValidationReceipts = async (flags) => {
       uniqueCompletionUsers: requiredCompletions,
       interviewProducingReceipts: requiredInterviews,
       interviewWindowDays: windowDays,
+      ownerAcceptanceRequired: acceptanceRequired,
     },
     totals: {
       files: files.length,
       validReceipts: files.length - invalidReceipts,
       invalidReceipts,
+      ownerAcceptedReceipts: records.filter((record) => record.ownerAccepted).length,
       completeReceipts: records.filter((record) => record.countableCompletion).length,
       uniqueCompletionUsers: completionUsers.size,
       interviewProducingReceipts: interviewReceipts.length,
       bestInterviewWindowCount: bestInterviewWindow.count,
     },
     bestInterviewWindow,
+    acceptance,
     gates: {
       ...gates,
-      all: gates.fiveUserCompletion && gates.interviewProduction && gates.noInvalidReceipts,
+      all:
+        gates.fiveUserCompletion &&
+        gates.interviewProduction &&
+        gates.noInvalidReceipts &&
+        gates.ownerAcceptance,
     },
     receipts: records,
   };
@@ -558,11 +663,19 @@ const printValidationAudit = (report) => {
       console.log(`- ${receipt.file}: ${receipt.errors.join("; ")}`);
     }
   }
+  if (report.acceptance.provided || report.requirements.ownerAcceptanceRequired) {
+    console.log(`Owner acceptance: ${report.acceptance.valid ? "pass" : "fail"}`);
+    if (report.acceptance.errors.length) console.log(`Acceptance errors: ${report.acceptance.errors.join("; ")}`);
+  }
   console.log(`Result: ${report.gates.all ? "pass" : "fail"}`);
 };
 
 const auditReleaseReadiness = async (flags) => {
-  const validation = await auditValidationReceipts({ ...flags, input: flags.input || "receipts" });
+  const validation = await auditValidationReceipts({
+    ...flags,
+    input: flags.input || "receipts",
+    requireAccepted: true,
+  });
   const waiver = await validateOwnerWaiver(flags.waiver);
   const externalValidation = validation.gates.all || waiver.valid;
 
@@ -577,6 +690,7 @@ const auditReleaseReadiness = async (flags) => {
       gates: validation.gates,
       totals: validation.totals,
       bestInterviewWindow: validation.bestInterviewWindow,
+      acceptance: validation.acceptance,
     },
     waiver,
     gates: {
