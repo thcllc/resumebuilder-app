@@ -8,6 +8,7 @@ Deadline from project intelligence: 2026-07-15.
 
 A tester counts only when all of these are true:
 
+- The tester starts a fresh validation run from the Validate page.
 - The tester imports or edits a usable resume.
 - The tester pastes a real job description.
 - The app computes keyword gaps and patch-shaped edits.
@@ -52,9 +53,11 @@ The audit command exits non-zero until both gates pass and every receipt is stru
 
 ## Receipt Privacy
 
-Validation receipts are local JSON files exported by the tester. They include timestamps, pass/fail criteria, scores, patch targets, and fingerprints.
+Validation receipts are local JSON files exported by the tester. They include a validation run id, timestamps, pass/fail criteria, scores, patch targets, fingerprints, and an integrity digest.
 
 Receipts do not include the full resume body or pasted job description body.
+
+The CLI auditor rejects receipts when the integrity digest does not match the receipt body, when a receipt id is duplicated, or when required fields contradict each other.
 
 ## Audit Output
 

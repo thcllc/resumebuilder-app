@@ -21,6 +21,8 @@ test.describe("validation receipts", () => {
     const analysis = analyzeTailoring(sampleResume, jd);
     const state = {
       ...createValidationState(),
+      runId: "run-11111111",
+      startedAt: "2026-06-10T09:59:00.000Z",
       testerLabel: "tester-01",
       outcome: "interview" as const,
       notes: "Recruiter screen booked after sending the tailored PDF.",
@@ -59,8 +61,16 @@ test.describe("validation receipts", () => {
     const serialized = JSON.stringify(receipt);
 
     expect(receipt.schema).toBe("resumebuilder.validation.v1");
+    expect(receipt.run).toMatchObject({
+      id: "run-11111111",
+      startedAt: "2026-06-10T09:59:00.000Z",
+    });
     expect(receipt.completion.coreFlowComplete).toBe(true);
     expect(receipt.completion.interviewOutcomeRecorded).toBe(true);
+    expect(receipt.integrity).toMatchObject({
+      algorithm: "fnv1a-stable-v1",
+      digest: expect.stringMatching(/^[a-f0-9]{8}$/),
+    });
     expect(receipt.privacy.containsResumeBody).toBe(false);
     expect(receipt.privacy.containsJobDescriptionBody).toBe(false);
     expect(serialized).not.toContain(sampleResume.summary);

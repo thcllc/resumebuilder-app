@@ -172,6 +172,29 @@ const readResume = async (input) => {
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
+const stableStringify = (value) => {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  return `{${Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+    .join(",")}}`;
+};
+
+const checksum = (input) => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+};
+
+const integritySourceFor = (receipt) => {
+  const { integrity: _integrity, ...source } = receipt;
+  return source;
+};
+
 const toNumber = (value, fallback) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -203,6 +226,23 @@ const validateReceiptShape = (receipt) => {
     errors.push("receiptId must match rbv-xxxxxxxx");
   }
   if (Number.isNaN(Date.parse(receipt.createdAt ?? ""))) errors.push("createdAt must be an ISO timestamp");
+
+  if (!isObject(receipt.run)) errors.push("run is required");
+  else {
+    if (typeof receipt.run.id !== "string" || !/^run-[a-f0-9]{8}$/.test(receipt.run.id)) {
+      errors.push("run.id must match run-xxxxxxxx");
+    }
+    if (Number.isNaN(Date.parse(receipt.run.startedAt ?? ""))) {
+      errors.push("run.startedAt must be an ISO timestamp");
+    }
+    if (
+      !Number.isNaN(Date.parse(receipt.run.startedAt ?? "")) &&
+      !Number.isNaN(Date.parse(receipt.createdAt ?? "")) &&
+      Date.parse(receipt.run.startedAt) > Date.parse(receipt.createdAt)
+    ) {
+      errors.push("run.startedAt cannot be after createdAt");
+    }
+  }
 
   if (!isObject(receipt.privacy)) errors.push("privacy is required");
   else {
@@ -258,6 +298,19 @@ const validateReceiptShape = (receipt) => {
     if (typeof receipt.fingerprints.resume !== "string") errors.push("fingerprints.resume is required");
     if (typeof receipt.fingerprints.jobDescription !== "string") {
       errors.push("fingerprints.jobDescription is required");
+    }
+  }
+
+  if (!isObject(receipt.integrity)) errors.push("integrity is required");
+  else {
+    if (receipt.integrity.algorithm !== "fnv1a-stable-v1") {
+      errors.push("integrity.algorithm must be fnv1a-stable-v1");
+    }
+    if (typeof receipt.integrity.digest !== "string" || !/^[a-f0-9]{8}$/.test(receipt.integrity.digest)) {
+      errors.push("integrity.digest must be 8 lowercase hex chars");
+    } else {
+      const expectedDigest = checksum(stableStringify(integritySourceFor(receipt)));
+      if (receipt.integrity.digest !== expectedDigest) errors.push("integrity.digest mismatch");
     }
   }
 
@@ -319,10 +372,31 @@ const auditValidationReceipts = async (flags) => {
       createdAt: receipt?.createdAt ?? "",
       coreFlowComplete,
       outcome: receipt?.outcome?.status ?? "missing",
+      hasOutcomeNotes,
       countableCompletion,
       countableInterview,
       errors,
     });
+  }
+
+  const ids = new Map();
+  for (const record of records) {
+    ids.set(record.receiptId, (ids.get(record.receiptId) ?? 0) + 1);
+  }
+  for (const record of records) {
+    if (ids.get(record.receiptId) > 1) record.errors.push("duplicate receiptId");
+  }
+  for (const record of records) {
+    const testerKey = record.tester.trim().toLowerCase();
+    record.countableCompletion =
+      record.errors.length === 0 &&
+      record.coreFlowComplete &&
+      testerKey &&
+      testerKey !== "anonymous tester";
+    record.countableInterview =
+      record.countableCompletion &&
+      (record.outcome === "interview" || record.outcome === "offer") &&
+      record.hasOutcomeNotes;
   }
 
   const completionUsers = new Set(

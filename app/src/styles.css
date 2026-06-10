@@ -761,6 +761,14 @@ button {
   align-items: end;
 }
 
+.page-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .page-header h1 {
   font-size: clamp(42px, 6vw, 68px);
   line-height: 1;
@@ -1642,6 +1650,18 @@ button {
   border-top: 1px solid var(--line);
   margin-top: 16px;
   padding-top: 16px;
+}
+
+.receipt-note.compact {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  margin-top: 0;
+  padding: 12px;
+  background: #fff;
+}
+
+.receipt-note.compact p {
+  margin: 4px 0 0;
 }
 
 .validation-protocol {

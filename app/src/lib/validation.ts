@@ -10,6 +10,8 @@ export type ValidationOutcome =
   | "no-response";
 
 export type ValidationState = {
+  runId: string;
+  startedAt: string;
   testerLabel: string;
   outcome: ValidationOutcome;
   notes: string;
@@ -39,6 +41,10 @@ export type ValidationReceipt = {
   receiptId: string;
   createdAt: string;
   app: "resumebuilderapp";
+  run: {
+    id: string;
+    startedAt: string;
+  };
   privacy: {
     localOnly: true;
     noAccount: true;
@@ -82,6 +88,10 @@ export type ValidationReceipt = {
     jobDescription: string;
   };
   patchTargets: string[];
+  integrity: {
+    algorithm: "fnv1a-stable-v1";
+    digest: string;
+  };
 };
 
 type ValidationInput = {
@@ -105,7 +115,12 @@ export const validationOutcomes: Array<[ValidationOutcome, string]> = [
   ["no-response", "No response"],
 ];
 
+const validationRunId = () =>
+  `run-${checksum(`${Date.now()}:${Math.random().toString(16).slice(2)}`)}`;
+
 export const createValidationState = (): ValidationState => ({
+  runId: validationRunId(),
+  startedAt: new Date().toISOString(),
   testerLabel: "",
   outcome: "not-sent",
   notes: "",
@@ -236,11 +251,15 @@ export const buildValidationReceipt = ({
     }),
   )}`;
 
-  return {
+  const receipt = {
     schema: "resumebuilder.validation.v1",
     receiptId,
     createdAt,
     app: "resumebuilderapp",
+    run: {
+      id: state.runId,
+      startedAt: state.startedAt,
+    },
     privacy: {
       localOnly: true,
       noAccount: true,
@@ -281,5 +300,13 @@ export const buildValidationReceipt = ({
     },
     fingerprints,
     patchTargets: analysis.patches.map((patch) => patch.target),
+  } satisfies Omit<ValidationReceipt, "integrity">;
+
+  return {
+    ...receipt,
+    integrity: {
+      algorithm: "fnv1a-stable-v1",
+      digest: checksum(stableStringify(receipt)),
+    },
   };
 };

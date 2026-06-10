@@ -116,6 +116,7 @@ What you will do
 
   await page.getByLabel("Primary").getByRole("button", { name: "Validate" }).click();
   await expect(page.getByRole("heading", { name: "Export evidence the core loop worked." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start new run" })).toBeVisible();
   await expect(page.getByText("Core flow")).toBeVisible();
   await expect(page.getByText("Complete", { exact: true })).toBeVisible();
   await page.getByLabel("Tester label").fill("tester-01");
@@ -131,12 +132,20 @@ What you will do
   if (!receiptPath) throw new Error("Expected validation receipt to produce a readable download.");
   const receipt = JSON.parse(await readFile(receiptPath, "utf8")) as {
     schema: string;
+    run: { id: string; startedAt: string };
     completion: { coreFlowComplete: boolean; interviewOutcomeRecorded: boolean };
     privacy: { containsResumeBody: boolean; containsJobDescriptionBody: boolean };
+    integrity: { algorithm: string; digest: string };
   };
   expect(receipt.schema).toBe("resumebuilder.validation.v1");
+  expect(receipt.run.id).toMatch(/^run-[a-f0-9]{8}$/);
+  expect(Date.parse(receipt.run.startedAt)).not.toBeNaN();
   expect(receipt.completion.coreFlowComplete).toBe(true);
   expect(receipt.completion.interviewOutcomeRecorded).toBe(true);
   expect(receipt.privacy.containsResumeBody).toBe(false);
   expect(receipt.privacy.containsJobDescriptionBody).toBe(false);
+  expect(receipt.integrity).toMatchObject({
+    algorithm: "fnv1a-stable-v1",
+    digest: expect.stringMatching(/^[a-f0-9]{8}$/),
+  });
 });

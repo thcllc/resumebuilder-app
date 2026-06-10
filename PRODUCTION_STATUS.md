@@ -26,7 +26,7 @@ The root JSX files are retained only as historical design reference. Do not trea
 - Outreach: generated locally from the current resume and JD with clipboard copy.
 - Social: generated local audit for LinkedIn, GitHub, portfolio, and old public-post cleanup.
 - Interview: generated local interview prep from the current resume and JD.
-- Validate: local tester-controlled receipts for five-user completion and interview-producing outcome evidence.
+- Validate: local tester-controlled validation runs with integrity-checked receipts for five-user completion and interview-producing outcome evidence.
 - Self-host: documented Cloudflare Pages, Docker, local CLI, validation receipt audit, CI, and plugin SDK paths.
 
 ## Verification
@@ -71,14 +71,14 @@ Current smoke suite covers:
 - Deterministic PDF generation.
 - CLI scoring, JSON/PDF export, and validation receipt cohort audit.
 - Template plugin SDK.
-- Validation receipt generation without embedding full resume or JD bodies.
+- Validation receipt generation with run metadata, integrity digest, and no embedded full resume or JD bodies.
 - Full browser path from edit through JD tailoring, diff accept, versions, JSON/PDF export, letter, outreach, interview, social, validation receipt export, and self-host surfaces.
 
 ## Known External Verification Gaps
 
 - Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27269038851`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
-- The Validate page, `node cli/resume.mjs validate`, and [VALIDATION.md](VALIDATION.md) now define the receipt format, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
+- The Validate page, `node cli/resume.mjs validate`, and [VALIDATION.md](VALIDATION.md) now define the fresh-run workflow, receipt format, integrity checks, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
 
 ## Release Gate
 

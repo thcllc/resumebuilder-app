@@ -45,6 +45,8 @@ const validationReceiptFor = ({
     ],
     state: {
       ...createValidationState(),
+      runId: `run-${testerLabel.replace(/\D/g, "").padStart(8, "0").slice(-8)}`,
+      startedAt: "2026-06-10T09:59:00.000Z",
       testerLabel,
       outcome,
       notes,
@@ -142,7 +144,7 @@ test.describe("resume CLI", () => {
     });
   });
 
-  test("fails validation audits with incomplete receipts", async () => {
+  test("fails validation audits with tampered receipts", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "resume-validation-cli-fail-"));
     const receipt = validationReceiptFor({
       testerLabel: "tester-01",
@@ -150,9 +152,7 @@ test.describe("resume CLI", () => {
       notes: "Recruiter screen booked.",
       createdAt: "2026-06-10T10:04:00.000Z",
     });
-    receipt.completion.coreFlowComplete = false;
-    receipt.completion.requiredPassed = receipt.completion.requiredTotal - 1;
-    receipt.criteria[0].pass = false;
+    receipt.metrics.patchCount = 0;
     await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receipt, null, 2));
 
     try {
@@ -177,6 +177,7 @@ test.describe("resume CLI", () => {
       expect(failure.code).toBe(1);
       const report = JSON.parse(failure.stdout ?? "{}");
       expect(report.gates.all).toBe(false);
+      expect(report.receipts[0].errors).toContain("integrity.digest mismatch");
       expect(report.totals.uniqueCompletionUsers).toBe(0);
     }
   });

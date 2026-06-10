@@ -220,6 +220,8 @@ const parseValidationState = (input: unknown): ValidationState => {
 
   const value = input as Record<string, unknown>;
   return {
+    runId: typeof value.runId === "string" ? value.runId : fallback.runId,
+    startedAt: typeof value.startedAt === "string" ? value.startedAt : fallback.startedAt,
     testerLabel: typeof value.testerLabel === "string" ? value.testerLabel : fallback.testerLabel,
     outcome: isValidationOutcome(value.outcome) ? value.outcome : fallback.outcome,
     notes: typeof value.notes === "string" ? value.notes : fallback.notes,
@@ -798,6 +800,10 @@ export function App() {
     updateValidationState({ [key]: new Date().toISOString() });
   };
 
+  const resetValidationRun = () => {
+    setValidationState(createValidationState());
+  };
+
   const updateBasics = (key: keyof ResumeData["basics"], value: string) => {
     setResume((current) => ({
       ...current,
@@ -1143,6 +1149,7 @@ export function App() {
           versions={versions}
           validationState={validationState}
           updateValidationState={updateValidationState}
+          resetValidationRun={resetValidationRun}
           exportValidationReceipt={exportValidationReceipt}
         />
       )}
@@ -1985,6 +1992,7 @@ function ValidationPage({
   versions,
   validationState,
   updateValidationState,
+  resetValidationRun,
   exportValidationReceipt,
 }: {
   resume: ResumeData;
@@ -1993,6 +2001,7 @@ function ValidationPage({
   versions: ApplicationVersion[];
   validationState: ValidationState;
   updateValidationState: (patch: Partial<ValidationState>) => void;
+  resetValidationRun: () => void;
   exportValidationReceipt: () => void;
 }) {
   const criteria = buildValidationChecklist({
@@ -2019,10 +2028,15 @@ function ValidationPage({
         title="Export evidence the core loop worked."
         body="No analytics, accounts, or cloud sync. A tester controls the receipt and can hand it to the project owner as proof of the local workflow."
         action={
-          <button className="button primary" onClick={exportValidationReceipt}>
-            <Download size={16} />
-            Export receipt
-          </button>
+          <div className="page-actions">
+            <button className="button quiet" onClick={resetValidationRun}>
+              Start new run
+            </button>
+            <button className="button primary" onClick={exportValidationReceipt}>
+              <Download size={16} />
+              Export receipt
+            </button>
+          </div>
         }
       />
 
@@ -2074,6 +2088,10 @@ function ValidationPage({
         <aside className="validation-panel">
           <div className="eyebrow">Tester receipt fields</div>
           <div className="validation-form">
+            <div className="receipt-note compact">
+              <strong>Run {validationState.runId}</strong>
+              <p>Started {new Date(validationState.startedAt).toLocaleString()}</p>
+            </div>
             <Field
               label="Tester label"
               value={validationState.testerLabel}
@@ -2110,8 +2128,9 @@ function ValidationPage({
           <div className="receipt-note">
             <strong>Receipt privacy</strong>
             <p>
-              The exported JSON includes timestamps, scores, fingerprints, and patch targets. It
-              does not include the full resume body or pasted job description body.
+              The exported JSON includes timestamps, scores, fingerprints, patch targets, a run id,
+              and an integrity digest. It does not include the full resume body or pasted job
+              description body.
             </p>
           </div>
         </aside>
