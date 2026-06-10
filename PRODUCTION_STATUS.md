@@ -1,6 +1,6 @@
 # Production Status
 
-Last verified: 2026-06-10 11:20 UTC.
+Last verified: 2026-06-10 11:26 UTC.
 
 ## Live App
 
@@ -28,12 +28,15 @@ The root JSX files are retained only as historical design reference. Do not trea
 - Interview: generated local interview prep from the current resume and JD.
 - Validate: local tester-controlled validation runs, tester handoff instructions, non-anonymous tester labels, no-assistance attestations, owner acceptance manifest writer handoff, release decision command, and integrity-checked receipts for five-user completion and interview-producing outcome evidence.
 - Self-host: documented Cloudflare Pages, Docker, local CLI, validation receipt audit, owner acceptance writer, owner-accepted release decision audit, local receipt collection, CI, and plugin SDK paths.
+- Validation campaign: copy-paste tester invite, outcome follow-up text, owner checklist, private tracker format, and evidence commands in [receipts/CAMPAIGN.md](receipts/CAMPAIGN.md).
 
 ## Verification
 
 Latest code-bearing commit verified by CI and deployed to Pages: `49c39506b80831f931bb9a864a23d999a219259f`.
 
-GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27272569236`.
+Latest branch-tip commit verified by CI: `708bc8e497b659cff11cac69228918f956eb9693`.
+
+GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27272879041`.
 
 CI status: success. The `app` job passed install, typecheck, Chromium browser install, Playwright smoke tests, and production build. The `docker` job passed the Docker image build.
 
@@ -84,9 +87,9 @@ Current smoke suite covers:
 
 ## Known External Verification Gaps
 
-- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27272569236`.
+- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27272879041`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
-- The Validate page, `node app/cli/resume.mjs validate`, `node app/cli/resume.mjs accept`, `node app/cli/resume.mjs release`, [receipts](receipts), and [VALIDATION.md](VALIDATION.md) now define the fresh-run workflow, receipt format, non-anonymous tester-label requirement, no-assistance attestation, integrity checks, local receipt collection, owner acceptance manifest writer, cohort auditor, release decision auditor, waiver format, and protocol for collecting that evidence, but no real-user receipt cohort, owner acceptance manifest, or owner waiver has been accepted in this repository.
+- The Validate page, `node app/cli/resume.mjs validate`, `node app/cli/resume.mjs accept`, `node app/cli/resume.mjs release`, [receipts](receipts), [receipts/CAMPAIGN.md](receipts/CAMPAIGN.md), and [VALIDATION.md](VALIDATION.md) now define the fresh-run workflow, receipt format, non-anonymous tester-label requirement, no-assistance attestation, integrity checks, tester invite, outcome follow-up, local receipt collection, owner acceptance manifest writer, cohort auditor, release decision auditor, waiver format, and protocol for collecting that evidence, but no real-user receipt cohort, owner acceptance manifest, or owner waiver has been accepted in this repository.
 
 ## Release Gate
 
