@@ -76,6 +76,7 @@ type ApplicationVersion = {
   template: Template;
 };
 type OutreachDraft = { tag: string; title?: string; body: string };
+type InterviewQuestion = { q: string; why: string; hook: string; likelihood: string };
 
 const STORAGE_KEY = "resume-builder-workspace-v2";
 const VERSIONS_STORAGE_KEY = "resume-builder-versions-v1";
@@ -254,71 +255,6 @@ const postAuditRows = [
     reason: "Turn into a short case-study sidebar.",
   },
 ];
-
-const interviewQuestions: Record<InterviewTab, Array<{ q: string; why: string; hook: string; likelihood: string }>> = {
-  technical: [
-    {
-      q: "How do you design an API that designers will actually use?",
-      why: "The JD asks for API design and developer experience.",
-      hook: "Plugin API v3 was the bet that designers would write code if the failure modes were humane.",
-      likelihood: "High",
-    },
-    {
-      q: "Walk me through a system you owned end to end.",
-      why: "Senior platform roles test ownership depth.",
-      hook: "Linear's design system, from zero to adopted by every team.",
-      likelihood: "High",
-    },
-    {
-      q: "How do you balance code prototypes and Figma?",
-      why: "The role explicitly asks for prototyping strength.",
-      hook: "Code for state and edge cases, Figma for surface exploration.",
-      likelihood: "Medium",
-    },
-  ],
-  craft: [
-    {
-      q: "Walk me through your portfolio.",
-      why: "The first screen will test narrative focus.",
-      hook: "Three projects: one platform, one system, one healthcare workflow.",
-      likelihood: "High",
-    },
-    {
-      q: "Show a piece of work you are not proud of.",
-      why: "They want self-awareness, not polish.",
-      hook: "Plugin store v2 looked good and converted poorly.",
-      likelihood: "High",
-    },
-  ],
-  behavioral: [
-    {
-      q: "Tell me about a conflict with an engineer.",
-      why: "Senior IC collaboration matters more than taste.",
-      hook: "Plugin API method names: technical precision vs writer-friendly shape.",
-      likelihood: "High",
-    },
-    {
-      q: "When did you change your mind?",
-      why: "Tests learning speed.",
-      hook: "I used to think design systems should be exhaustive.",
-      likelihood: "Medium",
-    },
-  ],
-  asks: [
-    {
-      q: "What does success look like in six months?",
-      why: "Clarifies whether the role has a real mandate.",
-      hook: "Use it to pin scope and decision rights.",
-      likelihood: "High",
-    },
-    {
-      q: "How does design get work into the roadmap?",
-      why: "Reveals whether design is upstream or downstream.",
-      hook: "Listen for ownership, not ceremonies.",
-      likelihood: "High",
-    },
-  ],
-};
 
 const initialPage = (): Page => {
   const hash = window.location.hash.replace("#", "") as Page;
@@ -532,6 +468,87 @@ const buildOutreachDrafts = (
       {
         tag: "Later",
         body: `Appreciate the note. I am not ready to move forward today, but ${role} is aligned enough that I would like to stay in touch.`,
+      },
+    ],
+  };
+};
+
+const buildInterviewQuestions = (
+  resume: ResumeData,
+  analysis: TailoringAnalysis,
+): Record<InterviewTab, InterviewQuestion[]> => {
+  const company = companyLabel(analysis);
+  const role = roleLabel(analysis);
+  const keywords = topKeywordLabels(analysis, 4);
+  const primaryKeyword = keywords[0] ?? "the role's core priority";
+  const secondaryKeyword = keywords[1] ?? "cross-functional execution";
+  const proof = strongestProof(resume);
+  const strongestRole = resume.work[0];
+  const roleProof = strongestRole
+    ? `${strongestRole.position} at ${strongestRole.name}: ${strongestRole.highlights[0]}`
+    : resume.summary;
+
+  return {
+    technical: [
+      {
+        q: `How would you approach ${primaryKeyword} for ${company}?`,
+        why: `The pasted JD emphasizes ${primaryKeyword}, so interviewers will test practical depth.`,
+        hook: proof,
+        likelihood: "High",
+      },
+      {
+        q: `What tradeoff would you watch while improving ${secondaryKeyword}?`,
+        why: "Senior interviews probe judgment, not only familiarity with keywords.",
+        hook: roleProof,
+        likelihood: "High",
+      },
+      {
+        q: `Which part of ${role} would you validate first?`,
+        why: "The team needs to know how you reduce ambiguity before execution.",
+        hook: `Use the resume's measurable proof point: ${proof}`,
+        likelihood: "Medium",
+      },
+    ],
+    craft: [
+      {
+        q: "Walk me through the project that best matches this posting.",
+        why: `Pick the story with the clearest connection to ${keywords.slice(0, 2).join(" and ") || role}.`,
+        hook: roleProof,
+        likelihood: "High",
+      },
+      {
+        q: "Show a decision where you made the work simpler.",
+        why: "Craft screens test whether you can explain constraints and taste together.",
+        hook: proof,
+        likelihood: "Medium",
+      },
+    ],
+    behavioral: [
+      {
+        q: `Tell me about a disagreement while working on ${primaryKeyword}.`,
+        why: "The JD implies collaboration; behavioral rounds will test how you handle friction.",
+        hook: "Anchor the answer in a specific decision, not a personality story.",
+        likelihood: "High",
+      },
+      {
+        q: "When did evidence change your plan?",
+        why: "The strongest candidates can show learning speed and judgment under uncertainty.",
+        hook: proof,
+        likelihood: "Medium",
+      },
+    ],
+    asks: [
+      {
+        q: `What would success for ${role} look like in the first six months?`,
+        why: "Clarifies whether the role has a concrete mandate.",
+        hook: `Listen for measurable ownership around ${primaryKeyword}.`,
+        likelihood: "High",
+      },
+      {
+        q: `Where is ${company} strongest and weakest on ${secondaryKeyword} today?`,
+        why: "Turns the JD keywords into a sharper operating conversation.",
+        hook: "Use the answer to decide which resume proof to lead with in follow-up.",
+        likelihood: "High",
       },
     ],
   };
@@ -926,7 +943,12 @@ export function App() {
       )}
       {page === "social" && <SocialPage tab={socialTab} setTab={setSocialTab} />}
       {page === "interview" && (
-        <InterviewPage tab={interviewTab} setTab={setInterviewTab} />
+        <InterviewPage
+          resume={resume}
+          analysis={tailoringAnalysis}
+          tab={interviewTab}
+          setTab={setInterviewTab}
+        />
       )}
       {page === "selfhost" && <SelfHostPage />}
     </div>
@@ -1705,20 +1727,25 @@ function SocialPage({
 }
 
 function InterviewPage({
+  resume,
+  analysis,
   tab,
   setTab,
 }: {
+  resume: ResumeData;
+  analysis: TailoringAnalysis;
   tab: InterviewTab;
   setTab: (tab: InterviewTab) => void;
 }) {
+  const questions = buildInterviewQuestions(resume, analysis);
+
   return (
     <main className="content-page">
       <PageHeader
         kicker="Interview prep"
         title="Likely questions from the JD."
-        body="Question, why it will come up, and the hook back to your resume."
+        body="Question, why it will come up, and the hook back to your current resume."
       />
-      <PrototypeNotice detail="Interview prep questions are sample content until generated from the current JD." />
       <Segmented<InterviewTab>
         label="Category"
         value={tab}
@@ -1731,7 +1758,7 @@ function InterviewPage({
         onChange={setTab}
       />
       <section className="question-list">
-        {interviewQuestions[tab].map((item, index) => (
+        {questions[tab].map((item, index) => (
           <article className="question-card" key={item.q}>
             <div className="question-number">Q{index + 1}</div>
             <div>

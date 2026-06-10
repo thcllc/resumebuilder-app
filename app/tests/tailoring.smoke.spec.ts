@@ -95,4 +95,9 @@ What you will do
       page.evaluate(() => (window as unknown as { __resumeCopiedText: string }).__resumeCopiedText),
     )
     .toContain("Nimbus Labs");
+
+  await page.getByLabel("Primary").getByRole("button", { name: "Interview" }).click();
+  await expect(page.getByText("How would you approach").first()).toBeVisible();
+  await expect(page.getByText("Nimbus Labs").first()).toBeVisible();
+  await expect(page.getByText("sample content until generated")).toHaveCount(0);
 });
