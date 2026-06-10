@@ -33,6 +33,7 @@ import {
   toJsonResume,
 } from "./lib/resume";
 import { analyzeTailoring, type TailoringAnalysis } from "./lib/tailoring";
+import { createResumePdfBlob } from "./lib/pdf";
 
 type Template =
   | "kraft"
@@ -487,8 +488,7 @@ const formatUpdated = (updatedAt: string) => {
   return `${days}d`;
 };
 
-const downloadFile = (name: string, type: string, body: string) => {
-  const blob = new Blob([body], { type });
+const downloadBlob = (name: string, blob: Blob) => {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -496,6 +496,18 @@ const downloadFile = (name: string, type: string, body: string) => {
   anchor.click();
   URL.revokeObjectURL(url);
 };
+
+const downloadFile = (name: string, type: string, body: string) => {
+  downloadBlob(name, new Blob([body], { type }));
+};
+
+const fileSafeName = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48) || "resume";
 
 const emptyWork = (): WorkItem => ({
   id: `work-${crypto.randomUUID()}`,
@@ -677,6 +689,10 @@ export function App() {
     downloadFile("resume.json", "application/json", JSON.stringify(toJsonResume(resume), null, 2));
   };
 
+  const exportPdf = () => {
+    downloadBlob(`${fileSafeName(resume.basics.name)}.pdf`, createResumePdfBlob(resume));
+  };
+
   const reviewTailoredDraft = () => {
     go("diff");
   };
@@ -785,9 +801,9 @@ export function App() {
             <FileJson size={16} />
             JSON
           </button>
-          <button className="button primary" onClick={() => window.print()}>
+          <button className="button primary" onClick={exportPdf}>
             <Printer size={16} />
-            Print
+            PDF
           </button>
         </div>
       </header>
@@ -815,6 +831,7 @@ export function App() {
           addHighlight={addHighlight}
           removeHighlight={removeHighlight}
           exportJson={exportJson}
+          exportPdf={exportPdf}
         />
       )}
       {page === "tailor" && (
@@ -902,7 +919,7 @@ function HomePage({
 
       <section className="feature-band">
         {[
-          ["Editor", "Split form and live paper preview with browser print export."],
+          ["Editor", "Split form and live paper preview with local PDF export."],
           ["Tailor", "Paste a job description and review structured suggestions."],
           ["Beyond", "Cover letter, outreach, and interview prep from the same resume."],
           ["Open", "Self-hostable posture with CLI, Docker, and plugin SDK path."],
@@ -938,6 +955,7 @@ function EditorPage({
   addHighlight,
   removeHighlight,
   exportJson,
+  exportPdf,
 }: {
   resume: ResumeData;
   score: ReturnType<typeof scoreResume>;
@@ -959,6 +977,7 @@ function EditorPage({
   addHighlight: (workId: string) => void;
   removeHighlight: (workId: string, index: number) => void;
   exportJson: () => void;
+  exportPdf: () => void;
 }) {
   return (
     <main className="workspace">
@@ -1097,9 +1116,9 @@ function EditorPage({
             <Download size={16} />
             Export
           </button>
-          <button className="button quiet" onClick={() => window.print()}>
+          <button className="button quiet" onClick={exportPdf}>
             <FileDown size={16} />
-            Print
+            PDF
           </button>
         </div>
         <ResumePaper resume={resume} template={template} />

@@ -5,15 +5,7 @@ test("non-Vercel JD produces computed patches that can be accepted and exported"
   page,
 }) => {
   await page.addInitScript(() => {
-    const printState = window as unknown as { __resumePrintCalled: boolean };
-    printState.__resumePrintCalled = false;
     window.localStorage.clear();
-    Object.defineProperty(window, "print", {
-      value: () => {
-        printState.__resumePrintCalled = true;
-      },
-      writable: true,
-    });
   });
 
   await page.goto("/#editor");
@@ -70,10 +62,14 @@ What you will do
   };
   expect(exportedResume.skills[0]?.keywords).toContain("API Design");
 
-  await page.getByRole("button", { name: "Print" }).first().click();
-  await expect
-    .poll(() =>
-      page.evaluate(() => (window as unknown as { __resumePrintCalled: boolean }).__resumePrintCalled),
-    )
-    .toBe(true);
+  const pdfDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "PDF" }).first().click();
+  const pdfDownload = await pdfDownloadPromise;
+  expect(pdfDownload.suggestedFilename()).toBe("jordan-kim.pdf");
+
+  const pdfPath = await pdfDownload.path();
+  if (!pdfPath) throw new Error("Expected PDF export to produce a readable download.");
+  const pdfText = await readFile(pdfPath, "utf8");
+  expect(pdfText.startsWith("%PDF-1.4")).toBe(true);
+  expect(pdfText).toContain("Jordan Kim");
 });
