@@ -719,6 +719,44 @@ test.describe("resume CLI", () => {
     }
   });
 
+  test("returns structured release blockers when the receipt input is missing", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-release-missing-input-"));
+    const missingInput = join(workspace, "missing-receipts");
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "release",
+          "--input",
+          missingInput,
+          "--json",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected missing-input release audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; stderr?: string; code?: number };
+      expect(failure.code).toBe(1);
+      expect(failure.stderr ?? "").toBe("");
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.validation.inputError).toContain("Cannot inspect receipt input");
+      expect(report.gates.all).toBe(false);
+      expect(report.blockers).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: "receipt.input-unreadable" })]),
+      );
+      expect(report.nextActions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "prepare-receipt-input",
+            command: `mkdir -p ${missingInput}`,
+          }),
+        ]),
+      );
+    }
+  });
+
   test("prints release blockers and next actions in human-readable audits", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "resume-release-empty-readable-"));
 

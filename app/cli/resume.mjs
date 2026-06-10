@@ -736,13 +736,26 @@ const ownerReviewFor = (records) => {
 };
 
 const defaultAcceptanceOutFor = async (input) => {
-  const info = await stat(input);
-  return join(info.isDirectory() ? input : dirname(input), "ACCEPTED_RECEIPTS.json");
+  try {
+    const info = await stat(input);
+    return join(info.isDirectory() ? input : dirname(input), "ACCEPTED_RECEIPTS.json");
+  } catch {
+    return join(evidenceDirectoryGuessFor(input), "ACCEPTED_RECEIPTS.json");
+  }
 };
 
 const defaultWaiverOutFor = async (input) => {
-  const info = await stat(input);
-  return join(info.isDirectory() ? input : dirname(input), "VALIDATION_WAIVER.md");
+  try {
+    const info = await stat(input);
+    return join(info.isDirectory() ? input : dirname(input), "VALIDATION_WAIVER.md");
+  } catch {
+    return join(evidenceDirectoryGuessFor(input), "VALIDATION_WAIVER.md");
+  }
+};
+
+const evidenceDirectoryGuessFor = (input) => {
+  const text = String(input || "receipts");
+  return text.endsWith(".json") ? dirname(text) : text;
 };
 
 const shellToken = (value) => {
@@ -1009,10 +1022,70 @@ const printAcceptanceWrite = (report) => {
   console.log(`Owner: ${report.manifest.acceptedBy}`);
 };
 
+const failedValidationAuditFor = async ({ input, flags, error }) => {
+  const acceptanceRequired = true;
+  const acceptance = await validateAcceptedReceipts(flags.accepted);
+  const requiredCompletions = toNumber(flags["require-completions"], 5);
+  const requiredInterviews = toNumber(flags["require-interviews"], 10);
+  const windowDays = Math.max(1, toNumber(flags["window-days"], 7));
+  const inputError = `Cannot inspect receipt input: ${error.message}`;
+
+  return {
+    schema: "resumebuilder.validation-audit.v1",
+    generatedAt: new Date().toISOString(),
+    input,
+    inputError,
+    requirements: {
+      uniqueCompletionUsers: requiredCompletions,
+      interviewProducingReceipts: requiredInterviews,
+      interviewWindowDays: windowDays,
+      ownerAcceptanceRequired: acceptanceRequired,
+    },
+    totals: {
+      files: 0,
+      validReceipts: 0,
+      invalidReceipts: 0,
+      ownerAcceptedReceipts: 0,
+      completeReceipts: 0,
+      uniqueCompletionUsers: 0,
+      interviewProducingReceipts: 0,
+      bestInterviewWindowCount: 0,
+    },
+    bestInterviewWindow: { count: 0, start: "", end: "", receiptIds: [] },
+    ownerReview: {
+      completionReceiptIds: [],
+      interviewReceiptIds: [],
+      receipts: [],
+      acceptanceOut: await defaultAcceptanceOutFor(input),
+      acceptanceCommand: "",
+    },
+    acceptance: {
+      ...acceptance,
+      valid: false,
+      errors: [...acceptance.errors, inputError],
+    },
+    gates: {
+      fiveUserCompletion: false,
+      interviewProduction: false,
+      noInvalidReceipts: false,
+      ownerAcceptance: false,
+      all: false,
+    },
+    receipts: [],
+  };
+};
+
 const releaseBlockersFor = ({ validation, waiver, externalValidation }) => {
   if (externalValidation) return [];
 
   const blockers = [];
+  if (validation.inputError) {
+    blockers.push({
+      id: "receipt.input-unreadable",
+      message: "Create the receipt evidence folder or point --input at an existing receipt file or folder.",
+      evidence: validation.inputError,
+    });
+  }
   if (validation.totals.invalidReceipts > 0) {
     blockers.push({
       id: "receipt.invalid",
@@ -1056,6 +1129,13 @@ const releaseNextActionsFor = ({ validation, waiver, acceptedPath, waiverPath })
   if (validation.gates.all || waiver.valid) return [];
 
   const actions = [];
+  if (validation.inputError) {
+    actions.push({
+      id: "prepare-receipt-input",
+      command: `mkdir -p ${shellToken(evidenceDirectoryGuessFor(validation.input))}`,
+      description: "Create the local evidence folder before collecting returned rbv-*.json receipt files.",
+    });
+  }
   if (validation.totals.invalidReceipts > 0) {
     actions.push({
       id: "fix-invalid-receipts",
@@ -1096,11 +1176,16 @@ const releaseNextActionsFor = ({ validation, waiver, acceptedPath, waiverPath })
 
 const auditReleaseReadiness = async (flags) => {
   const input = flags.input || "receipts";
-  const validation = await auditValidationReceipts({
-    ...flags,
-    input,
-    requireAccepted: true,
-  });
+  let validation;
+  try {
+    validation = await auditValidationReceipts({
+      ...flags,
+      input,
+      requireAccepted: true,
+    });
+  } catch (error) {
+    validation = await failedValidationAuditFor({ input, flags, error });
+  }
   const waiver = await validateOwnerWaiver(flags.waiver);
   const externalValidation = validation.gates.all || waiver.valid;
   const acceptedPath = flags.accepted || (await defaultAcceptanceOutFor(validation.input));
@@ -1116,6 +1201,7 @@ const auditReleaseReadiness = async (flags) => {
     },
     validation: {
       input: validation.input,
+      inputError: validation.inputError ?? "",
       gates: validation.gates,
       totals: validation.totals,
       bestInterviewWindow: validation.bestInterviewWindow,
