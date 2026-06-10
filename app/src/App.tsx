@@ -96,6 +96,12 @@ type SocialProfileAnalysis = {
   checks: SocialCheck[];
   polish: SocialPolish[];
 };
+type CampaignAction = {
+  title: string;
+  body: string;
+  copyLabel: string;
+  copyText: string;
+};
 type PostAuditRow = {
   age: string;
   source: string;
@@ -150,6 +156,43 @@ What you will do
 - Partner with engineers on API design and developer experience
 - Evolve our design system and prototyping culture
 - Ship continuously in production`;
+
+const testerInviteText = `I need a no-account validation run for Resume Builder.
+Open https://resumebuilder.app/#validate and click Start new run.
+Use your own resume or edit the sample into a usable resume.
+Paste a real job description for a role you would apply to.
+Review the computed diff, accept the tailored draft only if it is truthful, then export JSON and PDF.
+Return to Validate, enter a non-anonymous tester label, attest no assistance only if true, choose the outcome, add notes if an interview or offer happened, and export the receipt.
+Send back only the exported rbv-*.json file unless you explicitly want to share your resume or job description.`;
+
+const outcomeFollowUpText = `Did the application created with Resume Builder lead to an interview, recruiter screen, offer, rejection, no response, or no submission?
+If it led to an interview, recruiter screen, or offer, open https://resumebuilder.app/#validate, use the same resume/JD context if available, set Outcome to Interview or Offer, add a short evidence note, and export a fresh rbv-*.json receipt.
+Send back only the fresh receipt unless you explicitly want to share more detail.`;
+
+const ownerCommandText = `node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7
+node app/cli/resume.mjs accept --input receipts --out receipts/ACCEPTED_RECEIPTS.json --owner "OWNER NAME" --receipt-ids rbv-1234abcd,rbv-5678efab
+node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md`;
+
+const validationCampaignActions: CampaignAction[] = [
+  {
+    title: "Tester invite",
+    body: "Send this before a tester starts. It points them to the live app and states the no-assistance, privacy, and receipt-return expectations.",
+    copyLabel: "Copy tester invite",
+    copyText: testerInviteText,
+  },
+  {
+    title: "Outcome follow-up",
+    body: "Send this after the tailored resume is used so interview-producing receipts can be captured without changing the privacy posture.",
+    copyLabel: "Copy outcome follow-up",
+    copyText: outcomeFollowUpText,
+  },
+  {
+    title: "Owner commands",
+    body: "Run these locally after receipts arrive to audit the cohort, write explicit owner acceptance, and prove the release decision.",
+    copyLabel: "Copy owner commands",
+    copyText: ownerCommandText,
+  },
+];
 
 const initialPage = (): Page => {
   const hash = window.location.hash.replace("#", "") as Page;
@@ -2025,6 +2068,9 @@ function ValidationPage({
   const role = analysis.job.company === "Unknown company"
     ? analysis.job.title
     : `${analysis.job.company} - ${analysis.job.title}`;
+  const copyCampaignText = async (text: string) => {
+    await navigator.clipboard?.writeText(text);
+  };
 
   return (
     <main className="content-page">
@@ -2163,6 +2209,21 @@ function ValidationPage({
         </aside>
       </section>
 
+      <section className="campaign-actions" aria-label="Validation campaign actions">
+        {validationCampaignActions.map((action) => (
+          <article className="campaign-action-card" key={action.title}>
+            <div>
+              <div className="eyebrow">Campaign action</div>
+              <h2>{action.title}</h2>
+              <p>{action.body}</p>
+            </div>
+            <button className="button" onClick={() => void copyCampaignText(action.copyText)}>
+              {action.copyLabel}
+            </button>
+          </article>
+        ))}
+      </section>
+
       <section className="validation-protocol">
         <article className="code-card wide">
           <span>Validation campaign pack</span>
@@ -2173,13 +2234,7 @@ function ValidationPage({
             seven-day window.
           </p>
           <pre>{`Tester invite:
-I need a no-account validation run for Resume Builder.
-Open https://resumebuilder.app/#validate and click Start new run.
-Use your own resume or edit the sample into a usable resume.
-Paste a real job description for a role you would apply to.
-Review the computed diff, accept the tailored draft only if it is truthful, then export JSON and PDF.
-Return to Validate, enter a non-anonymous tester label, attest no assistance only if true, choose the outcome, add notes if an interview or offer happened, and export the receipt.
-Send back only the exported rbv-*.json file unless you explicitly want to share your resume or job description.`}</pre>
+${testerInviteText}`}</pre>
         </article>
         <article className="code-card wide">
           <span>Owner intake command</span>
@@ -2216,8 +2271,7 @@ Send back only the exported rbv-*.json file unless you explicitly want to share 
             toward interview-producing-resume evidence.
           </p>
           <pre>{`Outcome follow-up:
-Did the application created with Resume Builder lead to an interview, recruiter screen, offer, rejection, no response, or no submission?
-If it led to an interview, recruiter screen, or offer, export a fresh rbv-*.json receipt with Outcome set to Interview or Offer and a short evidence note.`}</pre>
+${outcomeFollowUpText}`}</pre>
         </article>
       </section>
     </main>

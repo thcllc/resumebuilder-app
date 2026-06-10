@@ -1682,6 +1682,44 @@ button {
   margin: 4px 0 0;
 }
 
+.campaign-actions {
+  max-width: 1180px;
+  margin: 16px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.campaign-action-card {
+  display: grid;
+  gap: 18px;
+  align-content: space-between;
+  min-height: 220px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(189, 86, 53, 0.1), transparent 48%),
+    var(--paper);
+}
+
+.campaign-action-card h2 {
+  margin: 8px 0 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 27px;
+  line-height: 1;
+}
+
+.campaign-action-card p {
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.campaign-action-card .button {
+  justify-content: center;
+}
+
 .validation-protocol {
   max-width: 1180px;
   margin: 16px auto 0;
@@ -1820,6 +1858,7 @@ button {
   .post-audit,
   .validation-grid,
   .validation-layout,
+  .campaign-actions,
   .validation-protocol {
     display: block;
   }
@@ -1873,6 +1912,7 @@ button {
   .post-table,
   .validation-status,
   .validation-panel,
+  .campaign-action-card,
   .validation-protocol .code-card {
     margin-top: 14px;
   }

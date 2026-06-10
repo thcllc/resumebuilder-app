@@ -122,6 +122,33 @@ What you will do
   await expect(page.getByRole("heading", { name: "Export evidence the core loop worked." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start new run" })).toBeVisible();
   await expect(page.getByText("Core flow")).toBeVisible();
+  await expect(page.getByLabel("Validation campaign actions")).toBeVisible();
+  await expect(page.getByText("Tester invite", { exact: true })).toBeVisible();
+  await expect(page.getByText("Outcome follow-up", { exact: true })).toBeVisible();
+  await expect(page.getByText("Owner commands", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Copy tester invite" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { __resumeCopiedText: string }).__resumeCopiedText),
+    )
+    .toContain("https://resumebuilder.app/#validate");
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { __resumeCopiedText: string }).__resumeCopiedText),
+    )
+    .toContain("no assistance");
+  await page.getByRole("button", { name: "Copy outcome follow-up" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { __resumeCopiedText: string }).__resumeCopiedText),
+    )
+    .toContain("fresh rbv-*.json receipt");
+  await page.getByRole("button", { name: "Copy owner commands" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { __resumeCopiedText: string }).__resumeCopiedText),
+    )
+    .toContain("node app/cli/resume.mjs release");
   await expect(page.getByText("Validation campaign pack")).toBeVisible();
   await expect(page.getByText("I need a no-account validation run for Resume Builder.")).toBeVisible();
   await expect(page.getByText("Owner intake command")).toBeVisible();
