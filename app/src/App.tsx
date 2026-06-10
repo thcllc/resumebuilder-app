@@ -2165,6 +2165,23 @@ function ValidationPage({
 
       <section className="validation-protocol">
         <article className="code-card wide">
+          <span>Validation campaign pack</span>
+          <p>
+            Recruit at least five real testers who are actively applying to jobs. Store returned{" "}
+            <code>rbv-*.json</code> files locally, accept only reviewed receipt ids, then keep
+            following up until accepted receipts prove ten interview-producing resumes in a
+            seven-day window.
+          </p>
+          <pre>{`Tester invite:
+I need a no-account validation run for Resume Builder.
+Open https://resumebuilder.app/#validate and click Start new run.
+Use your own resume or edit the sample into a usable resume.
+Paste a real job description for a role you would apply to.
+Review the computed diff, accept the tailored draft only if it is truthful, then export JSON and PDF.
+Return to Validate, enter a non-anonymous tester label, attest no assistance only if true, choose the outcome, add notes if an interview or offer happened, and export the receipt.
+Send back only the exported rbv-*.json file unless you explicitly want to share your resume or job description.`}</pre>
+        </article>
+        <article className="code-card wide">
           <span>Owner intake command</span>
           <p>
             Put tester-controlled <code>rbv-*.json</code> files in the repository{" "}
@@ -2197,6 +2214,9 @@ function ValidationPage({
             Update receipts after real outcomes. Count only receipts marked Interview or Offer
             toward interview-producing-resume evidence.
           </p>
+          <pre>{`Outcome follow-up:
+Did the application created with Resume Builder lead to an interview, recruiter screen, offer, rejection, no response, or no submission?
+If it led to an interview, recruiter screen, or offer, export a fresh rbv-*.json receipt with Outcome set to Interview or Offer and a short evidence note.`}</pre>
         </article>
       </section>
     </main>

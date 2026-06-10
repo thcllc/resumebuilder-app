@@ -122,13 +122,16 @@ What you will do
   await expect(page.getByRole("heading", { name: "Export evidence the core loop worked." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start new run" })).toBeVisible();
   await expect(page.getByText("Core flow")).toBeVisible();
+  await expect(page.getByText("Validation campaign pack")).toBeVisible();
+  await expect(page.getByText("I need a no-account validation run for Resume Builder.")).toBeVisible();
   await expect(page.getByText("Owner intake command")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs accept")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs release")).toBeVisible();
   await expect(page.getByText("receipts/ACCEPTED_RECEIPTS.json").first()).toBeVisible();
   await expect(page.getByText("Tester handoff")).toBeVisible();
-  await expect(page.getByText("https://resumebuilder.app/#validate")).toBeVisible();
+  await expect(page.getByText("https://resumebuilder.app/#validate", { exact: true })).toBeVisible();
+  await expect(page.getByText("Outcome follow-up:")).toBeVisible();
   await expect(page.getByRole("button", { name: "Export receipt" })).toBeDisabled();
   await expect(page.getByText("Complete", { exact: true })).toHaveCount(0);
   await page.getByLabel("No operator assistance").check();
