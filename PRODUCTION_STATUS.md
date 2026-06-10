@@ -1,6 +1,6 @@
 # Production Status
 
-Last verified: 2026-06-10 10:31 UTC.
+Last verified: 2026-06-10 10:38 UTC.
 
 ## Live App
 
@@ -8,7 +8,7 @@ Production URL: `https://resumebuilder.app`.
 
 Cloudflare Pages project: `resumebuilderapp`.
 
-Latest verified Pages deployment: `https://1b1ee513.resumebuilderapp.pages.dev`.
+Latest verified Pages deployment: `https://1afd205e.resumebuilderapp.pages.dev`.
 
 GitHub repository: `https://github.com/thcllc/resumebuilder-app`.
 
@@ -26,18 +26,18 @@ The root JSX files are retained only as historical design reference. Do not trea
 - Outreach: generated locally from the current resume and JD with clipboard copy.
 - Social: generated local audit for LinkedIn, GitHub, portfolio, and old public-post cleanup.
 - Interview: generated local interview prep from the current resume and JD.
-- Validate: local tester-controlled validation runs with integrity-checked receipts for five-user completion and interview-producing outcome evidence.
+- Validate: local tester-controlled validation runs with no-assistance attestations and integrity-checked receipts for five-user completion and interview-producing outcome evidence.
 - Self-host: documented Cloudflare Pages, Docker, local CLI, validation receipt audit, local receipt collection, CI, and plugin SDK paths.
 
 ## Verification
 
-Latest code-bearing commit verified by CI and deployed to Pages: `b1836175656902e656197f5d0d93f4530747961a`.
+Latest code-bearing commit verified by CI and deployed to Pages: `3465fc2316c5b743bdc2e359fc9109fe2764a1e4`.
 
-GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27270034370`.
+GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27270388766`.
 
 CI status: success. The `app` job passed install, typecheck, Chromium browser install, Playwright smoke tests, and production build. The `docker` job passed the Docker image build.
 
-Cloudflare Pages deployment: `https://1b1ee513.resumebuilderapp.pages.dev`.
+Cloudflare Pages deployment: `https://1afd205e.resumebuilderapp.pages.dev`.
 
 Local required commands:
 
@@ -61,7 +61,7 @@ curl -I https://resumebuilder.app
 
 Result: HTTP 200 from Cloudflare.
 
-Live smoke status: 15 Playwright tests passed against both `https://resumebuilder.app` and `https://1b1ee513.resumebuilderapp.pages.dev`.
+Live smoke status: 16 Playwright tests passed against both `https://resumebuilder.app` and `https://1afd205e.resumebuilderapp.pages.dev`.
 
 Local Playwright preview defaults to port `49217`; override with `PLAYWRIGHT_PORT` if that port is occupied. Local and deployed Playwright artifacts are separated under `test-results/local` and `test-results/deployed`.
 
@@ -69,16 +69,16 @@ Current smoke suite covers:
 
 - ATS scoring corpus.
 - Deterministic PDF generation.
-- CLI scoring, JSON/PDF export, and validation receipt cohort audit.
+- CLI scoring, JSON/PDF export, validation receipt cohort audit, tamper rejection, and assisted-run de-counting.
 - Template plugin SDK.
-- Validation receipt generation with run metadata, integrity digest, and no embedded full resume or JD bodies.
-- Full browser path from edit through JD tailoring, diff accept, versions, JSON/PDF export, letter, outreach, interview, social, validation intake command, validation receipt export, and self-host surfaces.
+- Validation receipt generation with run metadata, no-assistance attestation, integrity digest, and no embedded full resume or JD bodies.
+- Full browser path from edit through JD tailoring, diff accept, versions, JSON/PDF export, letter, outreach, interview, social, validation intake command, no-assistance attestation, validation receipt export, and self-host surfaces.
 
 ## Known External Verification Gaps
 
-- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27270034370`.
+- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27270388766`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
-- The Validate page, `node app/cli/resume.mjs validate`, [receipts](receipts), and [VALIDATION.md](VALIDATION.md) now define the fresh-run workflow, receipt format, integrity checks, local receipt collection, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
+- The Validate page, `node app/cli/resume.mjs validate`, [receipts](receipts), and [VALIDATION.md](VALIDATION.md) now define the fresh-run workflow, receipt format, no-assistance attestation, integrity checks, local receipt collection, cohort auditor, and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
 
 ## Release Gate
 
