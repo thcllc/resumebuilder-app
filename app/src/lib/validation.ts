@@ -140,6 +140,11 @@ const hasResumeContent = (resume: ResumeData) =>
 
 const hasDetailedJd = (jd: string) => jd.trim().length >= 120;
 
+const hasCountableTesterLabel = (label: string) => {
+  const normalized = label.trim().toLowerCase();
+  return Boolean(normalized) && normalized !== "anonymous tester";
+};
+
 const hasSavedApplicationFork = ({ jd, analysis, versions }: ValidationInput) =>
   versions.some(
     (version) =>
@@ -192,6 +197,14 @@ export const buildValidationChecklist = (input: ValidationInput): ValidationCrit
       evidence: state.noOperatorAssistance
         ? "Tester marked the flow as completed without operator assistance"
         : "Tester has not attested independent completion",
+    },
+    {
+      id: "tester-labeled",
+      label: "Tester label is non-anonymous",
+      pass: hasCountableTesterLabel(state.testerLabel),
+      evidence: hasCountableTesterLabel(state.testerLabel)
+        ? `Tester label: ${state.testerLabel.trim()}`
+        : "Enter a non-anonymous tester label before exporting the receipt",
     },
     {
       id: "json-exported",

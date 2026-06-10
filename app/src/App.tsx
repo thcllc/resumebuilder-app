@@ -2017,10 +2017,11 @@ function ValidationPage({
   });
   const passed = criteria.filter((criterion) => criterion.pass).length;
   const coreFlowComplete = passed === criteria.length;
+  const receiptExportReady = coreFlowComplete;
   const outcomeRecorded = isInterviewOutcome(validationState.outcome);
   const cohortLine = coreFlowComplete
     ? "This tester can count toward the five-user completion gate after the receipt is exported."
-    : "Finish every checklist item before counting this tester toward the five-user gate.";
+    : "Finish every checklist item before exporting a countable receipt.";
   const role = analysis.job.company === "Unknown company"
     ? analysis.job.title
     : `${analysis.job.company} - ${analysis.job.title}`;
@@ -2036,7 +2037,16 @@ function ValidationPage({
             <button className="button quiet" onClick={resetValidationRun}>
               Start new run
             </button>
-            <button className="button primary" onClick={exportValidationReceipt}>
+            <button
+              className="button primary"
+              disabled={!receiptExportReady}
+              onClick={exportValidationReceipt}
+              title={
+                receiptExportReady
+                  ? "Export a countable validation receipt"
+                  : "Finish every required receipt criterion first"
+              }
+            >
               <Download size={16} />
               Export receipt
             </button>

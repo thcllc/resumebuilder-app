@@ -13,7 +13,8 @@ Send each tester these instructions:
 5. Review the computed diff and accept the tailored draft.
 6. Export JSON and PDF.
 7. Return to Validate, enter a non-anonymous tester label, check the no-assistance attestation if true, choose the outcome, add notes if a real interview or offer happened, and click `Export receipt`.
-8. Send only the exported `rbv-*.json` receipt unless you explicitly consent to sharing the resume or job description.
+8. If `Export receipt` is disabled, finish the missing required receipt criteria shown on the Validate page.
+9. Send only the exported `rbv-*.json` receipt unless you explicitly consent to sharing the resume or job description.
 
 ## Owner Intake
 

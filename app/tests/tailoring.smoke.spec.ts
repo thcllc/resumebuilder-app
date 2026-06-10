@@ -125,10 +125,14 @@ What you will do
   await expect(page.getByText("node app/cli/resume.mjs release")).toBeVisible();
   await expect(page.getByText("Tester handoff")).toBeVisible();
   await expect(page.getByText("https://resumebuilder.app/#validate")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export receipt" })).toBeDisabled();
   await expect(page.getByText("Complete", { exact: true })).toHaveCount(0);
   await page.getByLabel("No operator assistance").check();
-  await expect(page.getByText("Complete", { exact: true })).toBeVisible();
+  await expect(page.getByText("Complete", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Tester label is non-anonymous")).toBeVisible();
   await page.getByLabel("Tester label").fill("tester-01");
+  await expect(page.getByText("Complete", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export receipt" })).toBeEnabled();
   await page.getByLabel("Outcome", { exact: true }).selectOption("interview");
   await page.getByLabel("Outcome notes").fill("Recruiter screen booked after sending the tailored PDF.");
 

@@ -78,4 +78,51 @@ test.describe("validation receipts", () => {
     expect(serialized).not.toContain(sampleResume.summary);
     expect(serialized).not.toContain("Shape API design workflows with engineers");
   });
+
+  test("requires a non-anonymous tester label before completion can count", () => {
+    const analysis = analyzeTailoring(sampleResume, jd);
+    const state = {
+      ...createValidationState(),
+      runId: "run-11111111",
+      startedAt: "2026-06-10T09:59:00.000Z",
+      testerLabel: "",
+      noOperatorAssistance: true,
+      outcome: "sent" as const,
+      notes: "",
+      reviewedDiffAt: "2026-06-10T10:00:00.000Z",
+      acceptedDraftAt: "2026-06-10T10:01:00.000Z",
+      exportedJsonAt: "2026-06-10T10:02:00.000Z",
+      exportedPdfAt: "2026-06-10T10:03:00.000Z",
+    };
+    const versions = [
+      {
+        jd,
+        jobTitle: analysis.job.title,
+        company: analysis.job.company,
+        status: "sent",
+        matchScore: analysis.score.tailored,
+      },
+    ];
+
+    const checklist = buildValidationChecklist({
+      resume: sampleResume,
+      jd,
+      analysis,
+      versions,
+      state,
+    });
+    const testerCriterion = checklist.find((criterion) => criterion.id === "tester-labeled");
+    expect(testerCriterion).toMatchObject({ pass: false });
+
+    const receipt = buildValidationReceipt({
+      resume: sampleResume,
+      jd,
+      analysis,
+      versions,
+      state,
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    expect(receipt.completion.coreFlowComplete).toBe(false);
+    expect(receipt.tester.label).toBe("anonymous tester");
+  });
 });

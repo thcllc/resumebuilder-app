@@ -17,6 +17,7 @@ A tester counts only when all of these are true:
 - The tester exports JSON Resume.
 - The tester exports PDF.
 - The tester attests that the run was completed without operator assistance.
+- The tester enters a non-anonymous tester label.
 - The tester exports a validation receipt from the Validate page.
 - The tester completed the flow without operator assistance.
 

@@ -232,6 +232,49 @@ test.describe("resume CLI", () => {
     }
   });
 
+  test("rejects anonymous validation receipts", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-validation-anonymous-"));
+    await writeFile(
+      join(workspace, "anonymous.json"),
+      JSON.stringify(
+        validationReceiptFor({
+          testerLabel: "",
+          outcome: "sent",
+          notes: "",
+          createdAt: "2026-06-10T10:04:00.000Z",
+        }),
+        null,
+        2,
+      ),
+    );
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "validate",
+          "--input",
+          workspace,
+          "--json",
+          "--require-completions",
+          "1",
+          "--require-interviews",
+          "0",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected anonymous receipt audit to fail.");
+    } catch (error) {
+      const failure = error as { stdout?: string; code?: number };
+      expect(failure.code).toBe(1);
+      const report = JSON.parse(failure.stdout ?? "{}");
+      expect(report.receipts[0].errors).toContain("tester.label must be non-anonymous");
+      expect(report.totals.invalidReceipts).toBe(1);
+      expect(report.totals.uniqueCompletionUsers).toBe(0);
+    }
+  });
+
   test("fails release audit without receipts or owner waiver", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "resume-release-empty-"));
 

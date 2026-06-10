@@ -255,6 +255,11 @@ const validateReceiptShape = (receipt) => {
 
   if (!isObject(receipt.tester) || typeof receipt.tester.label !== "string") {
     errors.push("tester.label is required");
+  } else {
+    const testerLabel = receipt.tester.label.trim().toLowerCase();
+    if (!testerLabel || testerLabel === "anonymous tester") {
+      errors.push("tester.label must be non-anonymous");
+    }
   }
 
   if (!isObject(receipt.attestations)) {
