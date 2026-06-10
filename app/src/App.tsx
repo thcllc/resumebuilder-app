@@ -77,6 +77,22 @@ type ApplicationVersion = {
 };
 type OutreachDraft = { tag: string; title?: string; body: string };
 type InterviewQuestion = { q: string; why: string; hook: string; likelihood: string };
+type SocialCheck = { label: string; state: "done" | "fix" | "watch"; note: string };
+type SocialPolish = { label: string; before: string; after: string };
+type SocialProfileAnalysis = {
+  score: number;
+  headline: string;
+  about: string;
+  checks: SocialCheck[];
+  polish: SocialPolish[];
+};
+type PostAuditRow = {
+  age: string;
+  source: string;
+  issue: string;
+  action: "Archive" | "Rewrite" | "Keep" | "Refresh";
+  reason: string;
+};
 
 const STORAGE_KEY = "resume-builder-workspace-v2";
 const VERSIONS_STORAGE_KEY = "resume-builder-versions-v1";
@@ -122,139 +138,6 @@ What you will do
 - Partner with engineers on API design and developer experience
 - Evolve our design system and prototyping culture
 - Ship continuously in production`;
-
-const socialProfiles: Record<
-  Exclude<SocialTab, "cleanup">,
-  {
-    score: number;
-    headline: string;
-    about: string;
-    checks: Array<{ label: string; state: "done" | "fix" | "watch"; note: string }>;
-    polish: Array<{ label: string; before: string; after: string }>;
-  }
-> = {
-  linkedin: {
-    score: 78,
-    headline: "Senior Product Designer | Developer Platforms, Design Systems, API Design",
-    about:
-      "I design developer-facing platform products: APIs, dashboards, design systems, and workflows that help teams ship with less friction.",
-    checks: [
-      { label: "Headline mirrors target role", state: "done", note: "Platform, API design, and design systems are visible." },
-      { label: "Featured work links", state: "fix", note: "Add Plugin API v3 case study and one print-ready resume." },
-      { label: "About section hook", state: "done", note: "First line states the category of work clearly." },
-      { label: "Experience bullets", state: "watch", note: "Move metrics above soft responsibilities." },
-      { label: "Skills order", state: "fix", note: "Pin API design, developer experience, systems, and prototyping." },
-    ],
-    polish: [
-      {
-        label: "Headline",
-        before: "Senior Product Designer at Figma",
-        after: "Senior Product Designer | Developer Platforms, Design Systems, API Design",
-      },
-      {
-        label: "About opener",
-        before: "I am a product designer passionate about building great products.",
-        after: "I design developer-facing platform products: APIs, dashboards, design systems, and workflows that help teams ship with less friction.",
-      },
-      {
-        label: "Featured link label",
-        before: "Portfolio",
-        after: "Plugin API v3 case study: 14k developers, 9M files",
-      },
-    ],
-  },
-  github: {
-    score: 72,
-    headline: "Pinned repos should prove craft, systems thinking, and code literacy.",
-    about:
-      "Make GitHub support the resume story: clean README files, pinned projects that match the role, and no abandoned experiments in the first impression.",
-    checks: [
-      { label: "Pinned repos match target", state: "fix", note: "Pin design-system and prototype repos first." },
-      { label: "README quality", state: "watch", note: "Add screenshots, setup, and what decisions were hard." },
-      { label: "Profile README", state: "done", note: "Use a short role statement and 3 proof links." },
-      { label: "Stale repos", state: "fix", note: "Archive unfinished experiments or add honest status notes." },
-      { label: "Contribution signal", state: "watch", note: "Keep recent commits focused and readable." },
-    ],
-    polish: [
-      {
-        label: "Profile README line",
-        before: "Designer learning code.",
-        after: "Product designer building developer tools, design systems, and React prototypes.",
-      },
-      {
-        label: "Pinned repo description",
-        before: "Components and stuff.",
-        after: "Token-driven React component system with accessibility fixtures and visual regression tests.",
-      },
-      {
-        label: "Archive note",
-        before: "old-plugin-tests",
-        after: "Archived exploration from Plugin API v2 research; kept for reference, not maintained.",
-      },
-    ],
-  },
-  portfolio: {
-    score: 84,
-    headline: "Portfolio should answer fit before the recruiter opens a resume export.",
-    about:
-      "The portfolio homepage should make the same promise as the tailored resume: platform design, API design, systems work, and measurable outcomes.",
-    checks: [
-      { label: "Hero states target work", state: "done", note: "Lead with developer platforms, not generic product design." },
-      { label: "Case study order", state: "done", note: "Plugin API first, Linear system second." },
-      { label: "Outcome metrics", state: "watch", note: "Put adoption and retention metrics in the first viewport." },
-      { label: "Contact path", state: "fix", note: "Add email and LinkedIn in footer and header." },
-      { label: "Resume link", state: "fix", note: "Link tailored print view and JSON Resume export." },
-    ],
-    polish: [
-      {
-        label: "Homepage H1",
-        before: "Product designer based in Brooklyn.",
-        after: "I design developer platforms, APIs, and systems that make complex tools easier to ship.",
-      },
-      {
-        label: "Case study title",
-        before: "Figma Plugins",
-        after: "Plugin API v3: designing a platform used by 14,000 developers.",
-      },
-      {
-        label: "CTA",
-        before: "Get in touch",
-        after: "See the platform case study",
-      },
-    ],
-  },
-};
-
-const postAuditRows = [
-  {
-    age: "2y",
-    source: "LinkedIn",
-    issue: "Generic career advice thread",
-    action: "Archive",
-    reason: "Does not support platform-design positioning.",
-  },
-  {
-    age: "1y",
-    source: "X",
-    issue: "Hot take about design systems",
-    action: "Rewrite",
-    reason: "Keep the insight, remove the absolute language.",
-  },
-  {
-    age: "8m",
-    source: "LinkedIn",
-    issue: "Plugin API launch post",
-    action: "Keep",
-    reason: "Strong proof point; add it to Featured.",
-  },
-  {
-    age: "5m",
-    source: "Blog",
-    issue: "Unfinished prototyping note",
-    action: "Refresh",
-    reason: "Turn into a short case-study sidebar.",
-  },
-];
 
 const initialPage = (): Page => {
   const hash = window.location.hash.replace("#", "") as Page;
@@ -552,6 +435,225 @@ const buildInterviewQuestions = (
       },
     ],
   };
+};
+
+const profileUrlFor = (resume: ResumeData, network: string) =>
+  resume.basics.profiles.find((profile) => profile.network.toLowerCase() === network.toLowerCase())?.url;
+
+const hasAnyProfile = (resume: ResumeData, network: string) => Boolean(profileUrlFor(resume, network));
+
+const initialsFor = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "R/";
+
+const scoreChecks = (checks: SocialCheck[]) => {
+  const points = checks.reduce((sum, check) => {
+    if (check.state === "done") return sum + 2;
+    if (check.state === "watch") return sum + 1;
+    return sum;
+  }, 0);
+  return Math.round((points / (checks.length * 2)) * 100);
+};
+
+const buildSocialProfiles = (
+  resume: ResumeData,
+  analysis: TailoringAnalysis,
+): Record<Exclude<SocialTab, "cleanup">, SocialProfileAnalysis> => {
+  const keywords = topKeywordLabels(analysis, 3);
+  const keywordPhrase = keywords.length ? keywords.join(", ") : roleLabel(analysis).toLowerCase();
+  const headline = resume.basics.label || roleLabel(analysis);
+  const proof = strongestProof(resume);
+  const skills = resume.skills.flatMap((skill) => skill.keywords).map((keyword) => keyword.toLowerCase());
+  const resumeHasKeyword = (keyword: string) =>
+    skills.some((skill) => skill.includes(keyword.toLowerCase())) ||
+    resume.summary.toLowerCase().includes(keyword.toLowerCase());
+
+  const linkedInChecks: SocialCheck[] = [
+    {
+      label: "Headline mirrors target role",
+      state: resume.basics.label.toLowerCase().includes(roleLabel(analysis).split(" ")[0]?.toLowerCase() ?? "")
+        ? "done"
+        : "watch",
+      note: `Make ${roleLabel(analysis)} visible in the first line.`,
+    },
+    {
+      label: "Keyword alignment",
+      state: keywords.every(resumeHasKeyword) ? "done" : "fix",
+      note: `Pin ${keywordPhrase} in About and Skills.`,
+    },
+    {
+      label: "Proof above responsibilities",
+      state: /\d|%|\$/.test(proof) ? "done" : "watch",
+      note: "Lead with measurable outcomes before broad responsibilities.",
+    },
+    {
+      label: "Profile link",
+      state: hasAnyProfile(resume, "LinkedIn") ? "done" : "fix",
+      note: "Add a LinkedIn profile URL to JSON Resume profiles.",
+    },
+  ];
+
+  const githubChecks: SocialCheck[] = [
+    {
+      label: "GitHub profile present",
+      state: hasAnyProfile(resume, "GitHub") ? "done" : "fix",
+      note: "Add a GitHub URL if public code supports this application.",
+    },
+    {
+      label: "Pinned repos match target",
+      state: keywords.some((keyword) => keyword.includes("api") || keyword.includes("developer") || keyword.includes("react"))
+        ? "done"
+        : "watch",
+      note: `Pin projects that prove ${keywordPhrase}.`,
+    },
+    {
+      label: "README narrative",
+      state: resume.summary.length > 90 ? "done" : "watch",
+      note: "Mirror the resume summary in a short GitHub profile README.",
+    },
+    {
+      label: "Stale experiments",
+      state: "watch",
+      note: "Archive unfinished repos or add honest status notes before applying.",
+    },
+  ];
+
+  const portfolioChecks: SocialCheck[] = [
+    {
+      label: "Portfolio URL",
+      state: Boolean(resume.basics.url) ? "done" : "fix",
+      note: "Add a portfolio or personal site URL to the resume basics.",
+    },
+    {
+      label: "Hero states fit",
+      state: keywords.length >= 2 ? "done" : "watch",
+      note: `Lead with ${keywordPhrase}, not a generic bio.`,
+    },
+    {
+      label: "Case-study proof",
+      state: /\d|%|\$/.test(proof) ? "done" : "fix",
+      note: "Surface the strongest measurable resume proof in the first case study.",
+    },
+    {
+      label: "Contact path",
+      state: Boolean(resume.basics.email) ? "done" : "fix",
+      note: "Make the same email visible in the portfolio header or footer.",
+    },
+  ];
+
+  return {
+    linkedin: {
+      score: scoreChecks(linkedInChecks),
+      headline: `${headline} | ${keywords.map((keyword) => keyword.replace(/\b\w/g, (letter) => letter.toUpperCase())).join(", ") || roleLabel(analysis)}`,
+      about: `Position the profile around ${companyLabel(analysis)}'s needs: ${keywordPhrase}. Lead with this proof: ${proof}`,
+      checks: linkedInChecks,
+      polish: [
+        {
+          label: "Headline",
+          before: headline,
+          after: `${headline} | ${keywordPhrase}`,
+        },
+        {
+          label: "About opener",
+          before: resume.summary || "I am exploring my next role.",
+          after: `I help teams with ${keywordPhrase}; the strongest proof is ${proof}`,
+        },
+        {
+          label: "Featured link label",
+          before: "Portfolio",
+          after: `${roleLabel(analysis)} proof for ${companyLabel(analysis)}`,
+        },
+      ],
+    },
+    github: {
+      score: scoreChecks(githubChecks),
+      headline: `Pinned repos should prove ${keywordPhrase}.`,
+      about: `Make GitHub support the resume story for ${roleLabel(analysis)}: readable READMEs, relevant pinned work, and clear status on experiments.`,
+      checks: githubChecks,
+      polish: [
+        {
+          label: "Profile README line",
+          before: `${headline}.`,
+          after: `${headline} working on ${keywordPhrase}.`,
+        },
+        {
+          label: "Pinned repo description",
+          before: "Side project.",
+          after: `Evidence for ${roleLabel(analysis)}: ${keywordPhrase}, decisions, setup, and tradeoffs.`,
+        },
+        {
+          label: "Archive note",
+          before: "old-experiment",
+          after: `Archived exploration; not part of the ${companyLabel(analysis)} application story.`,
+        },
+      ],
+    },
+    portfolio: {
+      score: scoreChecks(portfolioChecks),
+      headline: `Portfolio should answer fit for ${roleLabel(analysis)} before the recruiter opens the resume.`,
+      about: `The portfolio homepage should make the same promise as the tailored resume: ${keywordPhrase}, backed by measurable proof.`,
+      checks: portfolioChecks,
+      polish: [
+        {
+          label: "Homepage H1",
+          before: `${headline}.`,
+          after: `I work on ${keywordPhrase} for teams like ${companyLabel(analysis)}.`,
+        },
+        {
+          label: "Case study title",
+          before: "Selected work",
+          after: `${roleLabel(analysis)} proof: ${proof}`,
+        },
+        {
+          label: "CTA",
+          before: "Get in touch",
+          after: `See ${roleLabel(analysis)} case-study proof`,
+        },
+      ],
+    },
+  };
+};
+
+const buildPostAuditRows = (
+  resume: ResumeData,
+  analysis: TailoringAnalysis,
+): PostAuditRow[] => {
+  const keywords = topKeywordLabels(analysis, 3);
+  const keywordPhrase = keywords.join(", ") || roleLabel(analysis).toLowerCase();
+  return [
+    {
+      age: "before applying",
+      source: "LinkedIn",
+      issue: "Generic career advice or reposts",
+      action: "Archive",
+      reason: `Remove posts that distract from ${keywordPhrase}.`,
+    },
+    {
+      age: "last 12m",
+      source: "GitHub",
+      issue: "Unfinished experiments without README context",
+      action: "Refresh",
+      reason: `Add status notes or setup instructions before ${companyLabel(analysis)} reviews the profile.`,
+    },
+    {
+      age: "recent",
+      source: "Portfolio",
+      issue: "Strong resume proof not featured",
+      action: "Keep",
+      reason: `Feature this proof: ${strongestProof(resume)}`,
+    },
+    {
+      age: "any",
+      source: "Public posts",
+      issue: "Absolute claims about tools or teams",
+      action: "Rewrite",
+      reason: "Keep the insight, remove language that could read as brittle judgment.",
+    },
+  ];
 };
 
 const downloadBlob = (name: string, blob: Blob) => {
@@ -941,7 +1043,14 @@ export function App() {
           setChannel={setOutreachChannel}
         />
       )}
-      {page === "social" && <SocialPage tab={socialTab} setTab={setSocialTab} />}
+      {page === "social" && (
+        <SocialPage
+          resume={resume}
+          analysis={tailoringAnalysis}
+          tab={socialTab}
+          setTab={setSocialTab}
+        />
+      )}
       {page === "interview" && (
         <InterviewPage
           resume={resume}
@@ -1612,13 +1721,20 @@ function OutreachPage({
 }
 
 function SocialPage({
+  resume,
+  analysis,
   tab,
   setTab,
 }: {
+  resume: ResumeData;
+  analysis: TailoringAnalysis;
   tab: SocialTab;
   setTab: (tab: SocialTab) => void;
 }) {
-  const profile = tab === "cleanup" ? null : socialProfiles[tab];
+  const profiles = buildSocialProfiles(resume, analysis);
+  const postAuditRows = buildPostAuditRows(resume, analysis);
+  const profile = tab === "cleanup" ? null : profiles[tab];
+  const initials = initialsFor(resume.basics.name);
 
   return (
     <main className="content-page">
@@ -1627,7 +1743,6 @@ function SocialPage({
         title="Make every public profile support the application."
         body="Audit LinkedIn, GitHub, portfolio, and old posts so the recruiter sees one coherent story after opening the resume."
       />
-      <PrototypeNotice detail="Social profile polish is parked until the JD-tailoring loop is production-ready." />
       <Segmented<SocialTab>
         label="Surface"
         value={tab}
@@ -1653,7 +1768,7 @@ function SocialPage({
 
           <section className="social-main">
             <article className="profile-preview-card">
-              <div className="avatar-block">MC</div>
+              <div className="avatar-block">{initials}</div>
               <div>
                 <span>{tab}</span>
                 <h2>{profile.headline}</h2>
@@ -1782,9 +1897,8 @@ function SelfHostPage() {
       <PageHeader
         kicker="Open and portable"
         title="Your resume is a file."
-        body="JSON Resume underneath, a static web app on Pages, and a clear path to CLI, Docker, and plugin SDK."
+        body="JSON Resume underneath, a static web app on Pages, a Docker image, a local CLI, CI, and a typed template plugin contract."
       />
-      <PrototypeNotice detail="Docker, CLI, GitHub Action, and plugin SDK cards are roadmap placeholders." />
       <section className="dev-grid">
         <article className="code-card wide">
           <span>resume.json</span>
@@ -1803,10 +1917,10 @@ function SelfHostPage() {
   ]
 }`}</pre>
         </article>
-        <DevCard title="Docker" command="docker run -p 3210:3210 resume/app" />
-        <DevCard title="CLI" command="npx resume@latest export --template folio --pdf" />
-        <DevCard title="GitHub Action" command="uses: resume/render-action@v1" />
-        <DevCard title="Plugin SDK" command="defineTemplate({ name: 'my-template', render })" />
+        <DevCard title="Docker" command="docker build -t resumebuilderapp . && docker run --rm -p 3210:80 resumebuilderapp" />
+        <DevCard title="CLI" command="node cli/resume.mjs export --input resume.json --out exports --json --pdf" />
+        <DevCard title="GitHub Action" command="pnpm typecheck && pnpm test:smoke && pnpm build" />
+        <DevCard title="Plugin SDK" command="defineTemplate({ id: 'plain', name: 'Plain', description: 'Text', render })" />
       </section>
     </main>
   );
@@ -1832,15 +1946,6 @@ function PageHeader({
       </div>
       {action}
     </header>
-  );
-}
-
-function PrototypeNotice({ detail }: { detail: string }) {
-  return (
-    <div className="prototype-notice" role="note">
-      <strong>Prototype surface</strong>
-      <span>{detail}</span>
-    </div>
   );
 }
 

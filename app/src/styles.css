@@ -768,26 +768,6 @@ button {
   line-height: 1.55;
 }
 
-.prototype-notice {
-  max-width: 1180px;
-  margin: -12px auto 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--accent-soft);
-  color: var(--ink-2);
-  padding: 10px 12px;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.prototype-notice strong {
-  color: var(--accent);
-  white-space: nowrap;
-}
-
 .tailor-layout {
   min-height: calc(100vh - 58px);
   display: grid;

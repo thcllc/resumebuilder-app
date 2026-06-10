@@ -100,4 +100,17 @@ What you will do
   await expect(page.getByText("How would you approach").first()).toBeVisible();
   await expect(page.getByText("Nimbus Labs").first()).toBeVisible();
   await expect(page.getByText("sample content until generated")).toHaveCount(0);
+
+  await page.getByLabel("Primary").getByRole("button", { name: "Social" }).click();
+  await expect(page.getByText("Profile score")).toBeVisible();
+  await expect(page.getByText("Nimbus Labs").first()).toBeVisible();
+  await expect(page.getByText("Social profile polish is parked")).toHaveCount(0);
+  await page.getByRole("button", { name: "Old posts" }).click();
+  await expect(page.getByText("before applying", { exact: true })).toBeVisible();
+  await expect(page.getByText("Nimbus Labs").first()).toBeVisible();
+
+  await page.getByLabel("Primary").getByRole("button", { name: "Self-host" }).click();
+  await expect(page.getByText("docker build -t resumebuilderapp")).toBeVisible();
+  await expect(page.getByText("node cli/resume.mjs export")).toBeVisible();
+  await expect(page.getByText("roadmap placeholders")).toHaveCount(0);
 });

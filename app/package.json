@@ -3,12 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "resume-local": "./cli/resume.mjs"
+  },
   "scripts": {
     "dev": "vite",
+    "cli": "node cli/resume.mjs",
     "typecheck": "tsc --noEmit",
     "build": "pnpm typecheck && vite build",
     "preview": "vite preview",
     "test:smoke": "playwright test",
+    "docker:build": "docker build -t resumebuilderapp .",
     "deploy:pages": "pnpm build && pnpm dlx wrangler@latest pages deploy dist --project-name resumebuilderapp"
   },
   "dependencies": {
