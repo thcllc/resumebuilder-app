@@ -1,12 +1,14 @@
 # Production Status
 
-Last verified: 2026-06-10 09:48 UTC.
+Last verified: 2026-06-10 10:03 UTC.
 
 ## Live App
 
 Production URL: `https://resumebuilder.app`.
 
 Cloudflare Pages project: `resumebuilderapp`.
+
+Latest verified Pages deployment: `https://2b152803.resumebuilderapp.pages.dev`.
 
 GitHub repository: `https://github.com/thcllc/resumebuilder-app`.
 
@@ -29,11 +31,13 @@ The root JSX files are retained only as historical design reference. Do not trea
 
 ## Verification
 
-Verified implementation and CI workflow commit: `5e88ed81a48984bcec0ebd436a08c6bbd08eb987`.
+Verified implementation, CI workflow, and deployed app-code commit: `238de52a7f19e00e799b42fa1a671eeaa09284e0`.
 
-GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27267849706`.
+GitHub Actions CI: `https://github.com/thcllc/resumebuilder-app/actions/runs/27268623906`.
 
 CI status: success. The `app` job passed install, typecheck, Chromium browser install, Playwright smoke tests, and production build. The `docker` job passed the Docker image build.
+
+Cloudflare Pages deployment: `https://2b152803.resumebuilderapp.pages.dev`.
 
 Local required commands:
 
@@ -57,6 +61,8 @@ curl -I https://resumebuilder.app
 
 Result: HTTP 200 from Cloudflare.
 
+Live smoke status: 13 Playwright tests passed against both `https://resumebuilder.app` and `https://2b152803.resumebuilderapp.pages.dev`.
+
 Local Playwright preview defaults to port `49217`; override with `PLAYWRIGHT_PORT` if that port is occupied. Local and deployed Playwright artifacts are separated under `test-results/local` and `test-results/deployed`.
 
 Current smoke suite covers:
@@ -70,7 +76,7 @@ Current smoke suite covers:
 
 ## Known External Verification Gaps
 
-- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27267849706`.
+- Local Docker build was not run because the current environment has no `docker`, `podman`, `nerdctl`, or `buildah` binary. Docker image build is verified by GitHub Actions CI run `27268623906`.
 - Product-market validation remains external to the repo: five-user completion and interview-producing-resume metrics require real users.
 - The Validate page and [VALIDATION.md](VALIDATION.md) now define the receipt format and protocol for collecting that evidence, but no real-user receipt cohort has been accepted in this repository.
 
