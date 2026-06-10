@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>resume/ — design brief & prototype</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+html, body, #root { margin: 0; padding: 0; height: 100%; width: 100%; background: #f0eee9; overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="strategy.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+<script type="text/babel" src="extras.jsx"></script>
+<script type="text/babel" src="landing.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="mobile.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="strategy" title="Strategy" subtitle="Six-page brief on what to build, why, and how to know we won.">
+        <DCArtboard id="cover"      label="01 · Cover"        width={1180} height={760}><StrategyCover /></DCArtboard>
+        <DCArtboard id="teardown"   label="02 · Landscape"    width={1180} height={760}><StrategyTeardown /></DCArtboard>
+        <DCArtboard id="principles" label="03 · Principles"   width={1180} height={760}><StrategyPrinciples /></DCArtboard>
+        <DCArtboard id="features"   label="04 · Scope"        width={1180} height={760}><StrategyFeatures /></DCArtboard>
+        <DCArtboard id="roadmap"    label="05 · Roadmap"      width={1180} height={760}><StrategyRoadmap /></DCArtboard>
+        <DCArtboard id="metrics"    label="06 · Metrics & risks" width={1180} height={760}><StrategyMetrics /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="prototype" title="Prototype" subtitle="Hi-fi click-throughs of the four core surfaces.">
+        <DCArtboard id="editor"    label="Editor — form + live preview" width={1280} height={780}>
+          <AppChromeWrap tab="editor"><EditorView /></AppChromeWrap>
+        </DCArtboard>
+        <DCArtboard id="tailor"    label="Tailor to JD"        width={1280} height={780}>
+          <AppChromeWrap tab="tailor"><TailorView /></AppChromeWrap>
+        </DCArtboard>
+        <DCArtboard id="diff"      label="AI diff — accept per-edit" width={1180} height={780}>
+          <AppChromeWrap tab="tailor"><AIDiffView /></AppChromeWrap>
+        </DCArtboard>
+        <DCArtboard id="templates" label="Templates"            width={1180} height={780}>
+          <AppChromeWrap tab="templates"><TemplatesView /></AppChromeWrap>
+        </DCArtboard>
+        <DCArtboard id="versions"  label="Versions per application" width={1180} height={780}>
+          <AppChromeWrap tab="versions"><VersionsView /></AppChromeWrap>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="beyond" title="Beyond the PDF" subtitle="Cover letters, outreach, interview prep — same data, all free.">
+        <DCArtboard id="cover-letter" label="Cover letter — tone & signal" width={1280} height={780}>
+          <AppChromeWrap tab="editor"><CoverLetterView /></AppChromeWrap>
+        </DCArtboard>
+        <DCArtboard id="outreach"     label="Outreach — DM, email, referral" width={1280} height={780}>
+          <AppChromeWrap tab="editor"><OutreachView /></AppChromeWrap>
+        </DCArtboard>
+        <DCArtboard id="interview"    label="Interview prep" width={1180} height={780}>
+          <AppChromeWrap tab="editor"><InterviewPrepView /></AppChromeWrap>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="open" title="Open & portable" subtitle="The dev-facing posture: JSON Resume, CLI, Docker, plugin API.">
+        <DCArtboard id="selfhost" label="Self-host & developer experience" width={1280} height={840}>
+          <div className="rb-root" style={{ height: '100%', overflow: 'hidden' }}><SelfHostView /></div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="marketing" title="Marketing" subtitle="The public landing page that sets the tone.">
+        <DCArtboard id="landing" label="Landing page" width={1280} height={1800}>
+          <div className="rb-root" style={{ height: '100%' }}><Landing /></div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="mobile" title="Mobile" subtitle="The same product, designed natively for iPhone — same data, same posture, smaller surface.">
+        <DCArtboard id="m-editor"   label="Editor"        width={462} height={934}><PhoneFrame><MEditor /></PhoneFrame></DCArtboard>
+        <DCArtboard id="m-tailor"   label="Tailor to JD"  width={462} height={934}><PhoneFrame><MTailor /></PhoneFrame></DCArtboard>
+        <DCArtboard id="m-templates" label="Designs"      width={462} height={934}><PhoneFrame><MTemplates /></PhoneFrame></DCArtboard>
+        <DCArtboard id="m-versions" label="Versions"      width={462} height={934}><PhoneFrame><MVersions /></PhoneFrame></DCArtboard>
+        <DCArtboard id="m-cover"    label="Cover letter"  width={462} height={934}><PhoneFrame><MCoverLetter /></PhoneFrame></DCArtboard>
+        <DCArtboard id="m-outreach" label="Outreach"      width={462} height={934}><PhoneFrame><MOutreach /></PhoneFrame></DCArtboard>
+        <DCArtboard id="m-interview" label="Interview prep" width={462} height={934}><PhoneFrame><MInterview /></PhoneFrame></DCArtboard>
+        <DCArtboard id="m-landing"  label="Landing"       width={462} height={934}><PhoneFrame><MLanding /></PhoneFrame></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+// thin wrapper that puts AppChrome around any view, with the right active tab
+function AppChromeWrap({ tab, children }) {
+  return (
+    <div className="rb-root" style={{ height: '100%' }}>
+      <AppChrome activeTab={tab}>{children}</AppChrome>
+    </div>
+  );
+}
+
+// Centers an iOS device in an artboard. The device renders at its native
+// 402×874 and the surrounding artboard gives it a little breathing room.
+function PhoneFrame({ children }) {
+  return (
+    <div className="rb-root" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ede7db' }}>
+      <IOSDevice width={402} height={874}>
+        {/* clear status bar / dynamic island; leave room for home indicator */}
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', paddingTop: 54, paddingBottom: 24, boxSizing: 'border-box' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            {children}
+          </div>
+        </div>
+      </IOSDevice>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+.auth/
+.wrangler/cache/
+.DS_Store
+*.log
