@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 const actionVerbs = [
   "accelerated",
@@ -45,6 +45,7 @@ Usage:
   node cli/resume.mjs score --input resume.json
   node cli/resume.mjs export --input resume.json --out exports --json --pdf
   node cli/resume.mjs validate --input receipts --json
+  node cli/resume.mjs accept --input receipts --out receipts/ACCEPTED_RECEIPTS.json --owner "Jane Owner" --receipt-ids rbv-1234abcd
   node cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md --json
 `;
 
@@ -670,6 +671,95 @@ const printValidationAudit = (report) => {
   console.log(`Result: ${report.gates.all ? "pass" : "fail"}`);
 };
 
+const parseReceiptIds = (value) =>
+  String(value ?? "")
+    .split(/[,\s]+/)
+    .map((receiptId) => receiptId.trim())
+    .filter(Boolean);
+
+const defaultAcceptanceOutFor = async (input) => {
+  const info = await stat(input);
+  return join(info.isDirectory() ? input : dirname(input), "ACCEPTED_RECEIPTS.json");
+};
+
+const writeAcceptanceManifest = async (flags) => {
+  const input = flags.input || "receipts";
+  const owner = String(flags.owner ?? "").trim();
+  const receiptIds = parseReceiptIds(flags["receipt-ids"]);
+  const errors = [];
+
+  if (isPlaceholder(owner)) errors.push("--owner is required and cannot be a placeholder");
+  if (!receiptIds.length) errors.push("--receipt-ids must list at least one explicit receipt id");
+
+  const uniqueReceiptIds = new Set(receiptIds);
+  if (uniqueReceiptIds.size !== receiptIds.length) errors.push("--receipt-ids must not contain duplicates");
+  for (const receiptId of receiptIds) {
+    if (!/^rbv-[a-f0-9]{8}$/.test(receiptId)) errors.push(`invalid receiptId: ${receiptId}`);
+  }
+  if (errors.length) throw new Error(`Cannot write acceptance manifest:\n- ${errors.join("\n- ")}`);
+
+  const audit = await auditValidationReceipts({
+    input,
+    "require-completions": 0,
+    "require-interviews": 0,
+    "window-days": flags["window-days"] || 7,
+  });
+  const recordsById = new Map(audit.receipts.map((record) => [record.receiptId, record]));
+  const acceptanceErrors = [];
+
+  for (const receiptId of receiptIds) {
+    const record = recordsById.get(receiptId);
+    if (!record) {
+      acceptanceErrors.push(`${receiptId}: receipt not found in ${input}`);
+      continue;
+    }
+    if (record.errors.length) {
+      acceptanceErrors.push(`${receiptId}: ${record.errors.join("; ")}`);
+      continue;
+    }
+    const testerKey = record.tester.trim().toLowerCase();
+    if (!record.coreFlowComplete) acceptanceErrors.push(`${receiptId}: core flow is incomplete`);
+    if (!record.noOperatorAssistance) {
+      acceptanceErrors.push(`${receiptId}: no-assistance attestation is missing`);
+    }
+    if (!testerKey || testerKey === "anonymous tester" || testerKey === "missing") {
+      acceptanceErrors.push(`${receiptId}: tester label is not countable`);
+    }
+  }
+
+  if (acceptanceErrors.length) {
+    throw new Error(`Cannot accept receipts:\n- ${acceptanceErrors.join("\n- ")}`);
+  }
+
+  const out = flags.out || (await defaultAcceptanceOutFor(input));
+  const manifest = {
+    schema: "resumebuilder.accepted-receipts.v1",
+    project: "resumebuilder-app",
+    acceptedBy: owner,
+    acceptedAt: new Date().toISOString(),
+    receiptIds,
+    notes: flags.notes || "Accepted by the owner as real-user validation evidence.",
+  };
+
+  await mkdir(dirname(out), { recursive: true });
+  await writeFile(out, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  return {
+    schema: "resumebuilder.acceptance-write.v1",
+    generatedAt: new Date().toISOString(),
+    input,
+    out,
+    acceptedReceipts: receiptIds.length,
+    manifest,
+  };
+};
+
+const printAcceptanceWrite = (report) => {
+  console.log(`Wrote ${report.out}`);
+  console.log(`Accepted receipts: ${report.acceptedReceipts}`);
+  console.log(`Owner: ${report.manifest.acceptedBy}`);
+};
+
 const auditReleaseReadiness = async (flags) => {
   const validation = await auditValidationReceipts({
     ...flags,
@@ -746,6 +836,13 @@ const main = async () => {
     if (flags.json) console.log(JSON.stringify(report, null, 2));
     else printValidationAudit(report);
     if (!report.gates.all) process.exitCode = 1;
+    return;
+  }
+
+  if (flags.command === "accept") {
+    const report = await writeAcceptanceManifest(flags);
+    if (flags.json) console.log(JSON.stringify(report, null, 2));
+    else printAcceptanceWrite(report);
     return;
   }
 

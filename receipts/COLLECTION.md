@@ -22,7 +22,13 @@ Place returned receipts in the repository root `receipts/` folder.
 
 Receipt JSON files in this folder are ignored by Git. Keep accepted and rejected receipts locally or in a private evidence store.
 
-Copy `ACCEPTED_RECEIPTS.example.json` to `ACCEPTED_RECEIPTS.json`, fill in the owner acceptance fields, and list only receipt ids the owner accepts as real-user validation evidence. The active acceptance manifest is ignored by Git.
+After reviewing receipt ids, write the owner acceptance manifest with explicit accepted ids. The active acceptance manifest is ignored by Git.
+
+```bash
+node app/cli/resume.mjs accept --input receipts --out receipts/ACCEPTED_RECEIPTS.json --owner "OWNER NAME" --receipt-ids rbv-1234abcd,rbv-5678efab
+```
+
+The command refuses missing, duplicate, malformed, structurally invalid, incomplete, anonymous, or assisted receipt ids. Use `ACCEPTED_RECEIPTS.example.json` only as the schema reference.
 
 Audit the cohort:
 

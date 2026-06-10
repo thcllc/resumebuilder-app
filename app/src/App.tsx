@@ -2171,10 +2171,9 @@ function ValidationPage({
             <code>receipts/</code> folder, then audit the cohort locally.
           </p>
           <pre>{`node app/cli/resume.mjs validate --input receipts --require-completions 5 --require-interviews 10 --window-days 7`}</pre>
-          <p>
-            Then list owner-accepted receipt ids in <code>receipts/ACCEPTED_RECEIPTS.json</code>{" "}
-            and prove the release decision gate:
-          </p>
+          <p>Then write the owner acceptance manifest with explicit accepted receipt ids:</p>
+          <pre>{`node app/cli/resume.mjs accept --input receipts --out receipts/ACCEPTED_RECEIPTS.json --owner "OWNER NAME" --receipt-ids rbv-1234abcd,rbv-5678efab`}</pre>
+          <p>Prove the release decision gate after the manifest exists:</p>
           <pre>{`node app/cli/resume.mjs release --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --waiver receipts/VALIDATION_WAIVER.md`}</pre>
         </article>
         <article className="code-card">
@@ -2233,6 +2232,7 @@ function SelfHostPage() {
         <DevCard title="Docker" command="docker build -t resumebuilderapp . && docker run --rm -p 3210:80 resumebuilderapp" />
         <DevCard title="CLI" command="node cli/resume.mjs export --input resume.json --out exports --json --pdf" />
         <DevCard title="Validation audit" command="node cli/resume.mjs validate --input ../receipts --require-completions 5 --require-interviews 10 --window-days 7" />
+        <DevCard title="Owner acceptance" command="node cli/resume.mjs accept --input ../receipts --out ../receipts/ACCEPTED_RECEIPTS.json --owner 'OWNER NAME' --receipt-ids rbv-1234abcd" />
         <DevCard title="Release audit" command="node cli/resume.mjs release --input ../receipts --accepted ../receipts/ACCEPTED_RECEIPTS.json --waiver ../receipts/VALIDATION_WAIVER.md" />
         <DevCard title="GitHub Action" command="pnpm typecheck && pnpm test:smoke && pnpm build" />
         <DevCard title="Plugin SDK" command="defineTemplate({ id: 'plain', name: 'Plain', description: 'Text', render })" />

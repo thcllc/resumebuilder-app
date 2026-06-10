@@ -16,11 +16,19 @@ For machine-readable output:
 node app/cli/resume.mjs validate --input receipts --json
 ```
 
-To audit only receipt ids accepted by the owner, copy [ACCEPTED_RECEIPTS.example.json](ACCEPTED_RECEIPTS.example.json) to `ACCEPTED_RECEIPTS.json`, list accepted receipt ids, then run:
+To write the private owner acceptance manifest after receipt review:
+
+```bash
+node app/cli/resume.mjs accept --input receipts --out receipts/ACCEPTED_RECEIPTS.json --owner "OWNER NAME" --receipt-ids rbv-1234abcd,rbv-5678efab
+```
+
+To audit only receipt ids accepted by the owner:
 
 ```bash
 node app/cli/resume.mjs validate --input receipts --accepted receipts/ACCEPTED_RECEIPTS.json --require-completions 5 --require-interviews 10 --window-days 7
 ```
+
+Schema reference: [ACCEPTED_RECEIPTS.example.json](ACCEPTED_RECEIPTS.example.json).
 
 Collection instructions: [COLLECTION.md](COLLECTION.md).
 

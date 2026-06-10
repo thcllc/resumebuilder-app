@@ -230,6 +230,107 @@ test.describe("resume CLI", () => {
     );
   });
 
+  test("writes owner acceptance manifests for explicit countable receipt ids", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-acceptance-write-"));
+    const receipt = validationReceiptFor({
+      testerLabel: "tester-01",
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receipt, null, 2));
+    const accepted = join(workspace, "ACCEPTED_RECEIPTS.json");
+
+    const acceptanceWrite = await execFileAsync(
+      "node",
+      [
+        "cli/resume.mjs",
+        "accept",
+        "--input",
+        workspace,
+        "--out",
+        accepted,
+        "--owner",
+        "Project Owner",
+        "--receipt-ids",
+        receipt.receiptId,
+        "--json",
+      ],
+      { cwd: process.cwd() },
+    );
+    const writeReport = JSON.parse(acceptanceWrite.stdout);
+    const manifest = JSON.parse(await readFile(accepted, "utf8"));
+
+    expect(writeReport).toMatchObject({
+      schema: "resumebuilder.acceptance-write.v1",
+      out: accepted,
+      acceptedReceipts: 1,
+    });
+    expect(manifest).toMatchObject({
+      schema: "resumebuilder.accepted-receipts.v1",
+      project: "resumebuilder-app",
+      acceptedBy: "Project Owner",
+      receiptIds: [receipt.receiptId],
+    });
+    expect(Date.parse(manifest.acceptedAt)).not.toBeNaN();
+
+    const release = await execFileAsync(
+      "node",
+      [
+        "cli/resume.mjs",
+        "release",
+        "--input",
+        workspace,
+        "--accepted",
+        accepted,
+        "--json",
+        "--require-completions",
+        "1",
+        "--require-interviews",
+        "1",
+      ],
+      { cwd: process.cwd() },
+    );
+    expect(JSON.parse(release.stdout).gates.all).toBe(true);
+  });
+
+  test("refuses acceptance manifests for assisted or incomplete receipts", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "resume-acceptance-reject-"));
+    const receipt = validationReceiptFor({
+      testerLabel: "tester-01",
+      noOperatorAssistance: false,
+      outcome: "interview",
+      notes: "Recruiter screen booked after sending the tailored PDF.",
+      createdAt: "2026-06-10T10:04:00.000Z",
+    });
+    await writeFile(join(workspace, "tester-01.json"), JSON.stringify(receipt, null, 2));
+
+    try {
+      await execFileAsync(
+        "node",
+        [
+          "cli/resume.mjs",
+          "accept",
+          "--input",
+          workspace,
+          "--owner",
+          "Project Owner",
+          "--receipt-ids",
+          receipt.receiptId,
+          "--json",
+        ],
+        { cwd: process.cwd() },
+      );
+      throw new Error("Expected acceptance manifest write to fail.");
+    } catch (error) {
+      const failure = error as { stderr?: string; code?: number };
+      expect(failure.code).toBe(1);
+      expect(failure.stderr ?? "").toContain("Cannot accept receipts");
+      expect(failure.stderr ?? "").toContain("core flow is incomplete");
+      expect(failure.stderr ?? "").toContain("no-assistance attestation is missing");
+    }
+  });
+
   test("fails validation audits with tampered receipts", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "resume-validation-cli-fail-"));
     const receipt = validationReceiptFor({

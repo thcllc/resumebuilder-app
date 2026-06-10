@@ -113,6 +113,7 @@ What you will do
   await expect(page.getByText("docker build -t resumebuilderapp")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs export")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs validate")).toBeVisible();
+  await expect(page.getByText("node cli/resume.mjs accept")).toBeVisible();
   await expect(page.getByText("node cli/resume.mjs release")).toBeVisible();
   await expect(page.getByText("../receipts/ACCEPTED_RECEIPTS.json").first()).toBeVisible();
   await expect(page.getByText("roadmap placeholders")).toHaveCount(0);
@@ -123,6 +124,7 @@ What you will do
   await expect(page.getByText("Core flow")).toBeVisible();
   await expect(page.getByText("Owner intake command")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs validate")).toBeVisible();
+  await expect(page.getByText("node app/cli/resume.mjs accept")).toBeVisible();
   await expect(page.getByText("node app/cli/resume.mjs release")).toBeVisible();
   await expect(page.getByText("receipts/ACCEPTED_RECEIPTS.json").first()).toBeVisible();
   await expect(page.getByText("Tester handoff")).toBeVisible();
